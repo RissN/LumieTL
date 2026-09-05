@@ -8,7 +8,10 @@
 
     <!-- Section 1: Default Langs -->
     <div class="bg-[#18181C] border border-[#2A2A30] rounded-xl p-5 space-y-4">
-      <h2 class="text-sm font-semibold text-[#6C8EF5]">Bahasa & Engine Default</h2>
+      <div class="flex items-center gap-2 text-sm font-semibold text-[#6C8EF5]">
+        <Languages class="w-4 h-4" />
+        <h2>Bahasa & Engine Default</h2>
+      </div>
       
       <div class="grid grid-cols-2 gap-4">
         <div>
@@ -54,13 +57,17 @@
 
     <!-- Section 2: API Keys -->
     <div class="bg-[#18181C] border border-[#2A2A30] rounded-xl p-5 space-y-4">
-      <h2 class="text-sm font-semibold text-[#6C8EF5]">Kredensial API (Disimpan Terenkripsi)</h2>
+      <div class="flex items-center gap-2 text-sm font-semibold text-[#6C8EF5]">
+        <KeyRound class="w-4 h-4" />
+        <h2>Kredensial API (Disimpan Terenkripsi)</h2>
+      </div>
 
       <div>
         <div class="flex items-center justify-between mb-1">
           <label class="text-xs text-[#8A8A96]">DeepL API Key:</label>
-          <span class="text-[11px]" :class="settingsStore.apiKeys.deepl_set ? 'text-[#4CAF82]' : 'text-[#8A8A96]'">
-            {{ settingsStore.apiKeys.deepl_set ? '● Sudah Terpasang' : '○ Belum Diatur' }}
+          <span class="text-[11px] flex items-center gap-1" :class="settingsStore.apiKeys.deepl_set ? 'text-[#4CAF82]' : 'text-[#8A8A96]'">
+            <CheckCircle2 v-if="settingsStore.apiKeys.deepl_set" class="w-3 h-3" />
+            <span>{{ settingsStore.apiKeys.deepl_set ? 'Sudah Terpasang' : 'Belum Diatur' }}</span>
           </span>
         </div>
         <div class="flex gap-2">
@@ -72,7 +79,7 @@
           />
           <button
             @click="saveKey('deepl', deeplKey)"
-            class="px-3 py-1.5 text-xs bg-[#222228] hover:bg-[#2A2A30] text-[#E8E8ED] rounded border border-[#2A2A30]"
+            class="px-3 py-1.5 text-xs bg-[#222228] hover:bg-[#2A2A30] text-[#E8E8ED] rounded border border-[#2A2A30] transition-colors"
           >
             Simpan
           </button>
@@ -82,8 +89,9 @@
       <div>
         <div class="flex items-center justify-between mb-1">
           <label class="text-xs text-[#8A8A96]">OpenAI API Key:</label>
-          <span class="text-[11px]" :class="settingsStore.apiKeys.openai_set ? 'text-[#4CAF82]' : 'text-[#8A8A96]'">
-            {{ settingsStore.apiKeys.openai_set ? '● Sudah Terpasang' : '○ Belum Diatur' }}
+          <span class="text-[11px] flex items-center gap-1" :class="settingsStore.apiKeys.openai_set ? 'text-[#4CAF82]' : 'text-[#8A8A96]'">
+            <CheckCircle2 v-if="settingsStore.apiKeys.openai_set" class="w-3 h-3" />
+            <span>{{ settingsStore.apiKeys.openai_set ? 'Sudah Terpasang' : 'Belum Diatur' }}</span>
           </span>
         </div>
         <div class="flex gap-2">
@@ -95,7 +103,7 @@
           />
           <button
             @click="saveKey('openai', openaiKey)"
-            class="px-3 py-1.5 text-xs bg-[#222228] hover:bg-[#2A2A30] text-[#E8E8ED] rounded border border-[#2A2A30]"
+            class="px-3 py-1.5 text-xs bg-[#222228] hover:bg-[#2A2A30] text-[#E8E8ED] rounded border border-[#2A2A30] transition-colors"
           >
             Simpan
           </button>
@@ -107,9 +115,10 @@
     <div class="flex justify-end">
       <button
         @click="saveAllSettings"
-        class="bg-[#6C8EF5] hover:bg-[#7D9CF8] text-white text-xs font-semibold px-5 py-2.5 rounded-md transition-colors"
+        class="bg-[#6C8EF5] hover:bg-[#7D9CF8] text-white text-xs font-semibold px-5 py-2.5 rounded-md transition-colors flex items-center gap-2"
       >
-        Simpan Pengaturan
+        <Save class="w-3.5 h-3.5" />
+        <span>Simpan Pengaturan</span>
       </button>
     </div>
 
@@ -119,6 +128,7 @@
 
 <script setup lang="ts">
 import { ref, onMounted } from 'vue'
+import { Languages, KeyRound, CheckCircle2, Save } from 'lucide-vue-next'
 import { useSettingsStore } from '@/stores/settings'
 import Toast from '@/components/Toast.vue'
 

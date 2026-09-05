@@ -51,9 +51,11 @@
         <button
           @click="startTranslation"
           :disabled="!selectedFile || isProcessing"
-          class="bg-[#6C8EF5] hover:bg-[#7D9CF8] disabled:bg-[#222228] disabled:text-[#8A8A96] text-white text-xs font-semibold px-4 py-2 rounded-md transition-colors"
+          class="bg-[#6C8EF5] hover:bg-[#7D9CF8] disabled:bg-[#222228] disabled:text-[#8A8A96] text-white text-xs font-semibold px-4 py-2 rounded-md transition-colors flex items-center gap-2"
         >
-          {{ isProcessing ? 'Menerjemahkan...' : 'Terjemahkan' }}
+          <Loader2 v-if="isProcessing" class="w-3.5 h-3.5 animate-spin" />
+          <Languages v-else class="w-3.5 h-3.5" />
+          <span>{{ isProcessing ? 'Menerjemahkan...' : 'Terjemahkan' }}</span>
         </button>
       </div>
     </div>
@@ -73,9 +75,10 @@
         <button
           @click="downloadResult"
           :disabled="!afterPreview"
-          class="px-3 py-1.5 text-xs bg-[#222228] hover:bg-[#2A2A30] disabled:opacity-50 text-[#E8E8ED] rounded border border-[#2A2A30]"
+          class="px-3 py-1.5 text-xs bg-[#222228] hover:bg-[#2A2A30] disabled:opacity-50 text-[#E8E8ED] rounded border border-[#2A2A30] flex items-center gap-1.5"
         >
-          💾 Unduh Hasil
+          <Download class="w-3.5 h-3.5" />
+          <span>Unduh Hasil</span>
         </button>
       </div>
     </div>
@@ -87,6 +90,7 @@
 <script setup lang="ts">
 import { ref } from 'vue'
 import axios from 'axios'
+import { Download, Languages, Loader2 } from 'lucide-vue-next'
 import DropZone from '@/components/DropZone.vue'
 import ImageViewer from '@/components/ImageViewer.vue'
 import Toast from '@/components/Toast.vue'

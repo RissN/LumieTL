@@ -3,7 +3,7 @@
     <!-- Header -->
     <div>
       <h1 class="text-xl font-bold text-[#E8E8ED]">Proses Batch</h1>
-      <p class="text-sm text-[#8A8A96]">Unggah beberapa berkas sekaligus untuk diterjemahkan secara otomatis</p>
+      <p class="text-sm text-[#8A8A96]">Unggah beberapa berkas sekaligus untuk diterjemahkan secara berurutan</p>
     </div>
 
     <!-- Controls -->
@@ -18,9 +18,10 @@
       />
       <button
         @click="multiInput?.click()"
-        class="px-3 py-1.5 text-xs bg-[#222228] hover:bg-[#2A2A30] text-[#E8E8ED] rounded border border-[#2A2A30]"
+        class="px-3 py-1.5 text-xs bg-[#222228] hover:bg-[#2A2A30] text-[#E8E8ED] rounded border border-[#2A2A30] flex items-center gap-1.5 transition-colors"
       >
-        📁 Pilih Beberapa File
+        <FolderPlus class="w-3.5 h-3.5 text-[#6C8EF5]" />
+        <span>Pilih Berkas Gambar</span>
       </button>
 
       <span class="text-xs text-[#8A8A96]">{{ selectedFiles.length }} file dipilih</span>
@@ -38,9 +39,11 @@
         <button
           @click="startBatch"
           :disabled="selectedFiles.length === 0 || isRunning"
-          class="bg-[#6C8EF5] hover:bg-[#7D9CF8] disabled:bg-[#222228] disabled:text-[#8A8A96] text-white text-xs font-semibold px-4 py-2 rounded-md transition-colors"
+          class="bg-[#6C8EF5] hover:bg-[#7D9CF8] disabled:bg-[#222228] disabled:text-[#8A8A96] text-white text-xs font-semibold px-4 py-2 rounded-md transition-colors flex items-center gap-2"
         >
-          {{ isRunning ? 'Memproses...' : 'Mulai Batch' }}
+          <Loader2 v-if="isRunning" class="w-3.5 h-3.5 animate-spin" />
+          <Play v-else class="w-3.5 h-3.5" />
+          <span>{{ isRunning ? 'Memproses...' : 'Mulai Batch' }}</span>
         </button>
       </div>
     </div>
@@ -60,10 +63,22 @@
             <td class="p-3 text-[#E8E8ED] font-medium">{{ file.name }}</td>
             <td class="p-3 text-[#8A8A96]">{{ Math.round(file.size / 1024) }} KB</td>
             <td class="p-3">
-              <span v-if="taskResults[idx]?.status === 'success'" class="text-[#4CAF82]">✅ Selesai</span>
-              <span v-else-if="taskResults[idx]?.status === 'error'" class="text-[#E05C5C]">❌ Gagal</span>
-              <span v-else-if="isRunning && currentProgress >= idx" class="text-[#6C8EF5]">⏳ Memproses</span>
-              <span v-else class="text-[#8A8A96]">⏸ Menunggu</span>
+              <span v-if="taskResults[idx]?.status === 'success'" class="text-[#4CAF82] flex items-center gap-1.5">
+                <CheckCircle2 class="w-3.5 h-3.5" />
+                <span>Selesai</span>
+              </span>
+              <span v-else-if="taskResults[idx]?.status === 'error'" class="text-[#E05C5C] flex items-center gap-1.5">
+                <XCircle class="w-3.5 h-3.5" />
+                <span>Gagal</span>
+              </span>
+              <span v-else-if="isRunning && currentProgress >= idx" class="text-[#6C8EF5] flex items-center gap-1.5">
+                <Loader2 class="w-3.5 h-3.5 animate-spin" />
+                <span>Memproses</span>
+              </span>
+              <span v-else class="text-[#8A8A96] flex items-center gap-1.5">
+                <Clock class="w-3.5 h-3.5" />
+                <span>Menunggu</span>
+              </span>
             </td>
           </tr>
           <tr v-if="selectedFiles.length === 0">
@@ -82,6 +97,7 @@
 <script setup lang="ts">
 import { ref } from 'vue'
 import axios from 'axios'
+import { FolderPlus, Play, CheckCircle2, XCircle, Clock, Loader2 } from 'lucide-vue-next'
 import Toast from '@/components/Toast.vue'
 
 const multiInput = ref<HTMLInputElement | null>(null)

@@ -19,7 +19,9 @@
       @change="onFileChanged"
     />
 
-    <div class="text-4xl mb-3">📥</div>
+    <div class="w-14 h-14 rounded-2xl bg-[#222228] border border-[#2A2A30] flex items-center justify-center text-[#6C8EF5] mb-3 group-hover:scale-105 transition-transform">
+      <UploadCloud class="w-7 h-7" />
+    </div>
     <div class="text-sm font-medium text-[#E8E8ED] text-center mb-1">
       <span v-if="selectedFile">{{ selectedFile.name }}</span>
       <span v-else>Seret & lepas gambar di sini, atau klik untuk memilih berkas</span>
@@ -33,6 +35,7 @@
 
 <script setup lang="ts">
 import { ref } from 'vue'
+import { UploadCloud } from 'lucide-vue-next'
 
 const emit = defineEmits<{
   (e: 'file-selected', file: File): void

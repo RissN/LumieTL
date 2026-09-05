@@ -54,9 +54,9 @@
           @mousedown.prevent="isDragging = true"
         >
           <div
-            class="absolute top-1/2 -translate-y-1/2 -translate-x-1/2 w-6 h-6 rounded-full bg-[#6C8EF5] text-white flex items-center justify-center text-xs shadow-md"
+            class="absolute top-1/2 -translate-y-1/2 -translate-x-1/2 w-6 h-6 rounded-full bg-[#6C8EF5] text-white flex items-center justify-center shadow-lg"
           >
-            ⬌
+            <MoveHorizontal class="w-3.5 h-3.5" />
           </div>
         </div>
       </div>
@@ -65,26 +65,30 @@
     <!-- Toolbar -->
     <div class="flex items-center justify-between px-4 py-2 bg-[#18181C] border-t border-[#2A2A30]">
       <div class="text-xs text-[#8A8A96]">
-        Sebelum ◀ | ▶ Sesudah (Geser pembatas tengah)
+        Sebelum | Sesudah (Geser pembatas tengah)
       </div>
-      <div class="flex items-center gap-2">
+      <div class="flex items-center gap-1.5">
         <button
           @click="zoomScale = Math.min(zoomScale * 1.2, 4)"
-          class="px-2.5 py-1 text-xs bg-[#222228] hover:bg-[#2A2A30] text-[#E8E8ED] rounded border border-[#2A2A30]"
+          title="Perbesar"
+          class="p-1.5 bg-[#222228] hover:bg-[#2A2A30] text-[#E8E8ED] rounded border border-[#2A2A30] transition-colors"
         >
-          🔍 +
+          <ZoomIn class="w-3.5 h-3.5" />
         </button>
         <button
           @click="zoomScale = Math.max(zoomScale / 1.2, 0.5)"
-          class="px-2.5 py-1 text-xs bg-[#222228] hover:bg-[#2A2A30] text-[#E8E8ED] rounded border border-[#2A2A30]"
+          title="Perkecil"
+          class="p-1.5 bg-[#222228] hover:bg-[#2A2A30] text-[#E8E8ED] rounded border border-[#2A2A30] transition-colors"
         >
-          🔍 -
+          <ZoomOut class="w-3.5 h-3.5" />
         </button>
         <button
           @click="zoomScale = 1"
-          class="px-2.5 py-1 text-xs bg-[#222228] hover:bg-[#2A2A30] text-[#E8E8ED] rounded border border-[#2A2A30]"
+          title="Reset Zoom"
+          class="px-2.5 py-1 text-xs bg-[#222228] hover:bg-[#2A2A30] text-[#E8E8ED] rounded border border-[#2A2A30] flex items-center gap-1 transition-colors"
         >
-          Reset
+          <RotateCcw class="w-3 h-3" />
+          <span>Reset</span>
         </button>
       </div>
     </div>
@@ -93,6 +97,7 @@
 
 <script setup lang="ts">
 import { ref } from 'vue'
+import { ZoomIn, ZoomOut, RotateCcw, MoveHorizontal } from 'lucide-vue-next'
 
 defineProps<{
   beforeSrc: string | null

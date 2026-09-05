@@ -10,13 +10,14 @@
     <div
       v-if="visible"
       :class="[
-        'fixed bottom-6 left-1/2 -translate-x-1/2 z-50 px-5 py-2.5 rounded-lg border shadow-xl text-sm font-medium flex items-center gap-2',
+        'fixed bottom-6 left-1/2 -translate-x-1/2 z-50 px-4 py-2.5 rounded-lg border shadow-xl text-xs font-medium flex items-center gap-2 backdrop-blur-sm',
         type === 'error'
-          ? 'bg-[#222228] border-[#E05C5C] text-[#E05C5C]'
-          : 'bg-[#222228] border-[#6C8EF5] text-[#E8E8ED]'
+          ? 'bg-[#18181C]/95 border-[#E05C5C] text-[#E05C5C]'
+          : 'bg-[#18181C]/95 border-[#6C8EF5] text-[#E8E8ED]'
       ]"
     >
-      <span>{{ type === 'error' ? '⚠️' : '✨' }}</span>
+      <AlertCircle v-if="type === 'error'" class="w-4 h-4 shrink-0 text-[#E05C5C]" />
+      <CheckCircle2 v-else class="w-4 h-4 shrink-0 text-[#4CAF82]" />
       <span>{{ message }}</span>
     </div>
   </transition>
@@ -24,6 +25,7 @@
 
 <script setup lang="ts">
 import { ref } from 'vue'
+import { AlertCircle, CheckCircle2 } from 'lucide-vue-next'
 
 const visible = ref(false)
 const message = ref('')
