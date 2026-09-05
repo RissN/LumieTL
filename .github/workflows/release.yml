@@ -32,9 +32,8 @@ jobs:
           cp -r security release/LumieTL_Web/
           cp -r utils release/LumieTL_Web/
           cp requirements.txt release/LumieTL_Web/
-          cp run.py release/LumieTL_Web/
-          echo "python run.py" > release/LumieTL_Web/start.sh
-          echo "python run.py" > release/LumieTL_Web/start.bat
+          echo "uvicorn backend.main:app --host 0.0.0.0 --port 18420" > release/LumieTL_Web/start.sh
+          echo "uvicorn backend.main:app --host 127.0.0.1 --port 18420" > release/LumieTL_Web/start.bat
           chmod +x release/LumieTL_Web/start.sh
           PKG_VERSION="${{ github.ref_type == 'tag' && github.ref_name || 'v1.0.0' }}"
           cd release && zip -r "LumieTL_Web_${PKG_VERSION}.zip" LumieTL_Web/

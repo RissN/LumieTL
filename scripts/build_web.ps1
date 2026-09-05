@@ -24,11 +24,10 @@ Copy-Item "backend" -Destination $releaseDir -Recurse
 Copy-Item "core" -Destination $releaseDir -Recurse
 Copy-Item "security" -Destination $releaseDir -Recurse
 Copy-Item "utils" -Destination $releaseDir -Recurse
-Copy-Item "run.py" -Destination $releaseDir
 Copy-Item "requirements.txt" -Destination $releaseDir
 
-Set-Content -Path "$releaseDir\start.bat" -Value "python run.py"
-Set-Content -Path "$releaseDir\start.sh" -Value "python run.py"
+Set-Content -Path "$releaseDir\start.bat" -Value "uvicorn backend.main:app --host 127.0.0.1 --port 18420"
+Set-Content -Path "$releaseDir\start.sh" -Value "uvicorn backend.main:app --host 127.0.0.1 --port 18420"
 
 Write-Host ">>> Paket LumieTL Web Monolith selesai dibuat di $releaseDir!" -ForegroundColor Green
-Write-Host "    Jalankan server dengan: cd $releaseDir; python run.py" -ForegroundColor Yellow
+Write-Host "    Jalankan server dengan: cd $releaseDir; uvicorn backend.main:app --host 127.0.0.1 --port 18420" -ForegroundColor Yellow

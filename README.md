@@ -19,7 +19,7 @@ LumieTL adalah perangkat lunak penerjemah otomatis (auto-translator) untuk manga
   - Pemrosesan sekaligus untuk seluruh halaman dalam folder atau chapter.
   - Antrean cerdas dengan indikator status berkas, estimasi durasi, dan progress bar.
 - **Keamanan dan Perlindungan Data**:
-  - Penyimpanan kunci API terenkripsi menggunakan cipher Fernet dan pengelolaan kredensial aman.
+  - Penyimpanan kunci API terenkripsi menggunakan cipher Fernet pada sistem berkas terlindungi.
   - Validasi berkas berbasis magic bytes serta mitigasi ketat terhadap ancaman image decompression bomb dan path traversal.
   - Pembatasan laju permintaan (rate limiting) terintegrasi pada middleware server dan engine.
 - **Penyimpanan Riwayat Terintegrasi**:
@@ -42,10 +42,9 @@ LumieTL/
 │   ├── package.json          # Node dependencies
 │   └── vite.config.ts        # Konfigurasi Vite & proxy API
 ├── core/                     # Shared Engine (Translator, ONNX Model Manager, SQLite, Rate Limiter)
-├── security/                 # Keystore & Kriptografi Pengaturan
+├── security/                 # Keystore File & Kriptografi Pengaturan
 ├── utils/                    # Validasi berkas, pengolah gambar, rotasi log
 ├── tests/                    # Pengujian unit & integrasi otomatis
-├── run.py                    # Script runner utama aplikasi
 ├── requirements.txt          # Dependensi Python terpadu
 └── README.md                 # Dokumentasi proyek
 ```
@@ -75,7 +74,7 @@ pip install -r requirements.txt
 
 ### 2. Kompilasi Frontend Vue 3
 
-Kompilasi aset frontend ke direktori statis backend (cukup dijalankan sekali saat setup awal atau setelah mengubah kode frontend):
+Kompilasi aset antarmuka frontend (cukup dijalankan satu kali saat setup awal atau setelah memperbarui kode di direktori `frontend`):
 
 ```powershell
 cd frontend
@@ -84,45 +83,46 @@ npm run build
 cd ..
 ```
 
-Hasil kompilasi akan otomatis ditempatkan di `backend/frontend_dist/` dan disajikan langsung oleh FastAPI.
+Hasil kompilasi akan otomatis ditempatkan ke dalam `backend/frontend_dist/` dan siap disajikan langsung oleh Uvicorn.
 
 ---
 
-### 3. Menjalankan Aplikasi
+### 3. Menjalankan Server dengan Uvicorn
 
-Jalankan runner utama aplikasi:
+Jalankan server aplikasi menggunakan Uvicorn:
 
 ```powershell
-python run.py
+uvicorn backend.main:app --host 127.0.0.1 --port 18420
 ```
 
-Aplikasi dapat diakses melalui peramban (browser) di alamat:
+Setelah server aktif, buka peramban (browser) dan akses alamat berikut:
 ```
 http://127.0.0.1:18420
 ```
 
 ---
 
-### Mode Pengembangan Frontend (Hot-Reload)
+### Mode Pengembangan (Development)
 
-Jika Anda ingin memodifikasi tampilan frontend dengan fitur Hot-Module Replacement (HMR):
+Jika Anda sedang aktif mengembangkan atau memodifikasi kode:
 
-1. Di terminal pertama, jalankan backend server:
+1. **Backend dengan Auto-Reload**:
    ```powershell
-   python run.py
+   uvicorn backend.main:app --host 127.0.0.1 --port 18420 --reload
    ```
-2. Di terminal kedua, jalankan Vite dev server:
+
+2. **Frontend dengan Hot-Module Replacement (HMR)**:
    ```powershell
    cd frontend
    npm run dev
    ```
-3. Buka peramban di `http://localhost:5173`. Semua permintaan API akan otomatis dialihkan (proxied) ke backend di port 18420.
+   Akses `http://localhost:5173`. Semua permintaan API akan otomatis diarahkan oleh Vite ke server backend Uvicorn di port 18420.
 
 ---
 
 ## Pengujian Otomatis (Automated Tests)
 
-Jalankan unit tests suite untuk memverifikasi fungsionalitas core, enkripsi, dan API endpoint:
+Jalankan pengujian unit otomatis untuk memverifikasi fungsionalitas core, enkripsi, dan API endpoint:
 
 ```powershell
 .\venv\Scripts\pytest tests\ -v
@@ -132,10 +132,10 @@ Jalankan unit tests suite untuk memverifikasi fungsionalitas core, enkripsi, dan
 
 ## Pemaketan Distribusi (Build Release)
 
-Untuk membuat paket rilis siap pakai:
+Untuk membuat paket rilis mandiri siap pakai:
 
 ```powershell
 .\scripts\build_web.ps1
 ```
 
-Paket rilis lengkap beserta skrip peluncur (`start.bat` & `start.sh`) akan terbentuk di direktori `release/LumieTL_Web`.
+Paket distribusi lengkap beserta skrip peluncur (`start.bat` & `start.sh`) akan terbentuk di direktori `release/LumieTL_Web`.
