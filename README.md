@@ -1,109 +1,83 @@
-# LumieTL — Manga/Manhwa/Manhua Auto-Translator
+# LumieTL
 
-> Aplikasi auto-translator offline/hybrid untuk manga, manhwa, dan manhua dalam dua versi (Desktop Windows native & Web self-hostable) dari satu basis kode terpadu (*shared core*).
+LumieTL adalah perangkat lunak penerjemah otomatis (auto-translator) untuk manga, manhwa, dan manhua yang memanfaatkan model deep learning OCR dan mesin penerjemah. Aplikasi ini dirancang dalam arsitektur terpadu yang mendukung dua antarmuka: Desktop Native (Windows) dan Web Application.
 
 ---
 
-## ✨ Fitur Utama
+## Fitur Utama
 
-- **Dual-Version**:
-  - **Desktop App**: Native Windows 10/11 x64 berbasis PySide6 (Qt6) dengan Dark Theme elegan dan responsif.
-  - **Web App**: FastAPI backend dengan SPA frontend Vue 3 + TypeScript + Tailwind CSS v4.
-- **Shared Pure Core**: Tidak ada duplikasi business logic. Modul OCR, model manager, enkripsi, dan rate limiter berbagi kode yang identik.
-- **Penerjemahan Single Image**:
-  - Drag & drop atau pemilih file (JPG, PNG, WebP, AVIF).
-  - Before/After viewer interaktif dengan slider pembatas tengah dan kontrol zoom.
-  - Simpan hasil atau salin langsung ke clipboard.
-- **Penerjemahan Batch**:
-  - Pemrosesan satu folder/chapter sekaligus.
-  - Antrean dengan indikator status, durasi, progress bar ganda, dan kemampuan jeda/lanjut/batal.
-  - Ekspor log laporan batch ke format `.txt`.
-- **Dukungan Multi-Bahasa**:
-  - **Bahasa Sumber**: Auto-detect, Jepang (JPN), Korea (KOR), Mandarin Simplified (CHS), Mandarin Traditional (CHT).
+- **Deteksi Teks dan OCR Presisi Tinggi**: Menggunakan model deep learning berbasis ONNX Runtime untuk mendeteksi gelembung teks manga/manhwa/manhua secara akurat dan mengekstrak teks dengan format horizontal maupun vertikal.
+- **Dukungan Multi-Bahasa dan Mesin Penerjemah**:
+  - **Bahasa Sumber**: Deteksi Otomatis, Jepang (JPN), Korea (KOR), Mandarin Simplified (CHS), Mandarin Traditional (CHT).
   - **Bahasa Target**: Indonesia (ID), Inggris (EN), Vietnam (VI), Thailand (TH).
-  - **Engine Translasi**: Google Translate (gratis), DeepL (API), OpenAI GPT-4o (API).
-- **Keamanan Tingkat Tinggi**:
-  - Kunci API tidak disimpan plaintext (Windows Credential Manager via `keyring` & file Fernet terenkripsi).
-  - Enkripsi settings dengan master key persisten.
-  - Validasi magic bytes ketat dan perlindungan terhadap serangan *image decompression bomb* serta *path traversal*.
-  - Rate limiting engine dan middleware web anti-DoS dengan memory cleanup otomatis.
+  - **Pilihan Engine**: Google Translate, DeepL API, dan OpenAI GPT-4o API.
+- **Penerjemahan Gambar Tunggal (Single Image)**:
+  - Antarmuka visual interaktif dengan slider perbandingan Sebelum dan Sesudah (Before/After).
+  - Kontrol zoom dan pan untuk inspeksi detail grafis.
+  - Opsi ekspor langsung ke file atau salin ke papan klip (clipboard).
+- **Penerjemahan Batch (Batch Processing)**:
+  - Pemrosesan sekaligus untuk seluruh halaman dalam folder atau chapter.
+  - Antrean cerdas dengan pemantauan durasi, status per berkas, serta kontrol jeda (pause), lanjutkan (resume), dan batalkan (cancel).
+  - Fitur ekspor laporan hasil batch ke format teks.
+- **Keamanan dan Perlindungan Data**:
+  - Penyimpanan kunci API terenkripsi menggunakan Windows Credential Manager dan Fernet cipher.
+  - Validasi berkas berbasis magic bytes serta proteksi terhadap ancaman image decompression bomb dan path traversal.
+  - Pembatasan laju permintaan (rate limiting) untuk menjaga stabilitas kuota API.
+- **Antarmuka Modern dan Performa Optimal**:
+  - Antarmuka bertema gelap (Dark Theme) yang ergonomis.
+  - Pemrosesan latar belakang berbasis multi-threading agar antarmuka tetap responsif tanpa freeze.
+  - Pencatatan riwayat pemrosesan berbasis basis data SQLite lokal.
 
 ---
 
-## 🚀 Memulai (Pengembangan Lokal)
+## Panduan Menjalankan Aplikasi
 
-### Persyaratan Sistem
+### Prasyarat Sistem
 - Python 3.11 (64-bit)
-- Node.js 20+ & npm (khusus untuk frontend versi web)
-
-### 1. Setup Virtual Environment
-```powershell
-# Buat virtual environment dengan Python 3.11
-py -3.11 -m venv venv
-
-# Aktifkan virtual environment
-.\venv\Scripts\Activate.ps1
-
-# Instal dependensi Desktop & Core
-pip install -r requirements.txt
-```
-
-### 2. Menjalankan Versi Desktop
-```powershell
-python -m desktop.main
-```
-*Catatan: Pada saat pertama kali dijalankan, aplikasi akan menampilkan dialog setup untuk mengunduh model ONNX yang dibutuhkan.*
-
-### 3. Menjalankan Versi Web
-```powershell
-# Instal dependensi web backend
-pip install -r requirements-web.txt
-
-# Jalankan build frontend Vue (satu kali)
-cd web\frontend
-npm install
-npm run build
-cd ..\..
-
-# Jalankan server FastAPI
-python -m web.backend.main
-```
-Akses web melalui browser di `http://127.0.0.1:18420`.
+- Git
+- Node.js versi 20 atau lebih baru (hanya diperlukan untuk antarmuka web)
 
 ---
 
-## 🧪 Menjalankan Automated Unit Tests
+### 1. Menjalankan Versi Desktop
 
-Suite pengujian otomatis mencakup verifikasi sanitasi path traversal, validasi magic bytes & decompression bomb, enkripsi settings, SQLite history manager, dan rate limiter:
-
-```powershell
-.\venv\Scripts\pytest tests\ -v
-```
-
----
-
-## 📦 Build & Distribusi
-
-Tersedia script PowerShell di folder `scripts/`:
-
-- **Build Desktop Standalone (.exe)**:
-  ```powershell
-  .\scripts\build_desktop.ps1
-  ```
-  Hasil tersimpan di `dist\LumieTL\`.
-
-- **Build Web Distribution**:
-  ```powershell
-  .\scripts\build_web.ps1
-  ```
-
-- **Build Inno Setup Installer**:
-  ```powershell
-  .\scripts\build_installer.ps1
-  ```
-  Menghasilkan installer installer tunggal: `dist\LumieTL_Setup_v1.0.0.exe`.
+1. Buka terminal (PowerShell atau Command Prompt) di direktori proyek.
+2. Buat dan aktifkan virtual environment:
+   ```powershell
+   py -3.11 -m venv venv
+   .\venv\Scripts\Activate.ps1
+   ```
+3. Pasang paket dependensi yang dibutuhkan:
+   ```powershell
+   pip install -r requirements.txt
+   ```
+4. Jalankan aplikasi Desktop:
+   ```powershell
+   python -m desktop.main
+   ```
+   *Catatan: Saat aplikasi pertama kali dibuka, dialog setup akan mengunduh model ONNX yang diperlukan secara otomatis.*
 
 ---
 
-## 🛡 Lisensi
-Dilisensikan di bawah [MIT License](LICENSE).
+### 2. Menjalankan Versi Web
+
+1. Aktifkan virtual environment dan pasang dependensi web:
+   ```powershell
+   .\venv\Scripts\Activate.ps1
+   pip install -r requirements-web.txt
+   ```
+2. Kompilasi aset antarmuka frontend (Vue 3):
+   ```powershell
+   cd web\frontend
+   npm install
+   npm run build
+   cd ..\..
+   ```
+3. Jalankan backend server:
+   ```powershell
+   python -m web.backend.main
+   ```
+4. Buka peramban (browser) dan akses alamat berikut:
+   ```
+   http://127.0.0.1:18420
+   ```
