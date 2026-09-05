@@ -128,14 +128,3 @@ Jalankan pengujian unit otomatis untuk memverifikasi fungsionalitas core, enkrip
 .\venv\Scripts\pytest tests\ -v
 ```
 
----
-
-## Pemaketan Distribusi (Build Release)
-
-Untuk membuat paket rilis mandiri siap pakai:
-
-```powershell
-.\scripts\build_web.ps1
-```
-
-Paket distribusi lengkap beserta skrip peluncur (`start.bat` & `start.sh`) akan terbentuk di direktori `release/LumieTL_Web`.
