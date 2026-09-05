@@ -1,1 +1,0 @@
-"""LumieTL Desktop Package."""

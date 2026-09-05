@@ -1,32 +1,54 @@
 # LumieTL
 
-LumieTL adalah perangkat lunak penerjemah otomatis (auto-translator) untuk manga, manhwa, dan manhua yang memanfaatkan model deep learning OCR dan mesin penerjemah. Aplikasi ini dirancang dalam arsitektur terpadu yang mendukung dua antarmuka: Desktop Native (Windows) dan Web Application.
+LumieTL adalah perangkat lunak penerjemah otomatis (auto-translator) untuk manga, manhwa, dan manhua berbasis deep learning OCR dan machine translation. Proyek ini dibangun dengan arsitektur Web Monolith yang menggabungkan antarmuka Single Page Application (SPA) berbasis Vue 3 + TypeScript dan backend berkinerja tinggi berbasis FastAPI + Python Core.
 
 ---
 
 ## Fitur Utama
 
-- **Deteksi Teks dan OCR Presisi Tinggi**: Menggunakan model deep learning berbasis ONNX Runtime untuk mendeteksi gelembung teks manga/manhwa/manhua secara akurat dan mengekstrak teks dengan format horizontal maupun vertikal.
+- **Deteksi Teks dan OCR Presisi Tinggi**: Menggunakan model deep learning berbasis ONNX Runtime untuk mendeteksi gelembung teks manga/manhwa/manhua secara otomatis dan mengekstrak teks dengan orientasi horizontal maupun vertikal.
 - **Dukungan Multi-Bahasa dan Mesin Penerjemah**:
   - **Bahasa Sumber**: Deteksi Otomatis, Jepang (JPN), Korea (KOR), Mandarin Simplified (CHS), Mandarin Traditional (CHT).
   - **Bahasa Target**: Indonesia (ID), Inggris (EN), Vietnam (VI), Thailand (TH).
   - **Pilihan Engine**: Google Translate, DeepL API, dan OpenAI GPT-4o API.
 - **Penerjemahan Gambar Tunggal (Single Image)**:
   - Antarmuka visual interaktif dengan slider perbandingan Sebelum dan Sesudah (Before/After).
-  - Kontrol zoom dan pan untuk inspeksi detail grafis.
-  - Opsi ekspor langsung ke file atau salin ke papan klip (clipboard).
+  - Kontrol zoom dan pan untuk inspeksi detail gambar beresolusi tinggi.
+  - Opsi ekspor langsung ke format berkas gambar atau papan klip.
 - **Penerjemahan Batch (Batch Processing)**:
   - Pemrosesan sekaligus untuk seluruh halaman dalam folder atau chapter.
-  - Antrean cerdas dengan pemantauan durasi, status per berkas, serta kontrol jeda (pause), lanjutkan (resume), dan batalkan (cancel).
-  - Fitur ekspor laporan hasil batch ke format teks.
+  - Antrean cerdas dengan indikator status berkas, estimasi durasi, dan progress bar.
 - **Keamanan dan Perlindungan Data**:
-  - Penyimpanan kunci API terenkripsi menggunakan Windows Credential Manager dan Fernet cipher.
-  - Validasi berkas berbasis magic bytes serta proteksi terhadap ancaman image decompression bomb dan path traversal.
-  - Pembatasan laju permintaan (rate limiting) untuk menjaga stabilitas kuota API.
-- **Antarmuka Modern dan Performa Optimal**:
-  - Antarmuka bertema gelap (Dark Theme) yang ergonomis.
-  - Pemrosesan latar belakang berbasis multi-threading agar antarmuka tetap responsif tanpa freeze.
-  - Pencatatan riwayat pemrosesan berbasis basis data SQLite lokal.
+  - Penyimpanan kunci API terenkripsi menggunakan cipher Fernet dan pengelolaan kredensial aman.
+  - Validasi berkas berbasis magic bytes serta mitigasi ketat terhadap ancaman image decompression bomb dan path traversal.
+  - Pembatasan laju permintaan (rate limiting) terintegrasi pada middleware server dan engine.
+- **Penyimpanan Riwayat Terintegrasi**:
+  - Riwayat penerjemahan disimpan otomatis di basis data SQLite lokal untuk audit dan peninjauan ulang.
+
+---
+
+## Struktur Direktori Proyek
+
+```
+LumieTL/
+├── backend/                  # Server FastAPI & REST API endpoints
+│   ├── api/                  # Routers: translate, models, history, settings
+│   ├── middleware/           # Rate limiting & middleware autentikasi
+│   ├── frontend_dist/        # Aset terkompilasi frontend Vue 3
+│   └── main.py               # Entry point FastAPI & static SPA mounting
+├── frontend/                 # Source code frontend Vue 3 + TypeScript
+│   ├── src/                  # Komponen, Views, Router, Pinia store, Styles
+│   ├── index.html            # Vite entry point
+│   ├── package.json          # Node dependencies
+│   └── vite.config.ts        # Konfigurasi Vite & proxy API
+├── core/                     # Shared Engine (Translator, ONNX Model Manager, SQLite, Rate Limiter)
+├── security/                 # Keystore & Kriptografi Pengaturan
+├── utils/                    # Validasi berkas, pengolah gambar, rotasi log
+├── tests/                    # Pengujian unit & integrasi otomatis
+├── run.py                    # Script runner utama aplikasi
+├── requirements.txt          # Dependensi Python terpadu
+└── README.md                 # Dokumentasi proyek
+```
 
 ---
 
@@ -34,42 +56,86 @@ LumieTL adalah perangkat lunak penerjemah otomatis (auto-translator) untuk manga
 
 ### Prasyarat Sistem
 - Python 3.11 (64-bit)
+- Node.js versi 20 atau lebih baru (dan npm)
 - Git
 
 ---
 
-### 1. Menjalankan Versi Desktop
+### 1. Setup Virtual Environment & Dependensi Python
 
-1. Buka terminal (PowerShell atau Command Prompt) di direktori proyek.
-2. Buat dan aktifkan virtual environment:
-   ```powershell
-   py -3.11 -m venv venv
-   .\venv\Scripts\Activate.ps1
-   ```
-3. Pasang paket dependensi yang dibutuhkan:
-   ```powershell
-   pip install -r requirements.txt
-   ```
-4. Jalankan aplikasi Desktop:
-   ```powershell
-   python -m desktop.main
-   ```
-   *Catatan: Saat aplikasi pertama kali dibuka, dialog setup akan mengunduh model ONNX yang diperlukan secara otomatis.*
+Buka terminal di direktori proyek, lalu buat dan aktifkan virtual environment:
+
+```powershell
+py -3.11 -m venv venv
+.\venv\Scripts\Activate.ps1
+pip install -r requirements.txt
+```
 
 ---
 
-### 2. Menjalankan Versi Web (Monolith)
+### 2. Kompilasi Frontend Vue 3
 
-1. Aktifkan virtual environment dan pasang dependensi web:
+Kompilasi aset frontend ke direktori statis backend (cukup dijalankan sekali saat setup awal atau setelah mengubah kode frontend):
+
+```powershell
+cd frontend
+npm install
+npm run build
+cd ..
+```
+
+Hasil kompilasi akan otomatis ditempatkan di `backend/frontend_dist/` dan disajikan langsung oleh FastAPI.
+
+---
+
+### 3. Menjalankan Aplikasi
+
+Jalankan runner utama aplikasi:
+
+```powershell
+python run.py
+```
+
+Aplikasi dapat diakses melalui peramban (browser) di alamat:
+```
+http://127.0.0.1:18420
+```
+
+---
+
+### Mode Pengembangan Frontend (Hot-Reload)
+
+Jika Anda ingin memodifikasi tampilan frontend dengan fitur Hot-Module Replacement (HMR):
+
+1. Di terminal pertama, jalankan backend server:
    ```powershell
-   .\venv\Scripts\Activate.ps1
-   pip install -r requirements-web.txt
+   python run.py
    ```
-2. Jalankan server web LumieTL:
+2. Di terminal kedua, jalankan Vite dev server:
    ```powershell
-   python -m web.backend.main
+   cd frontend
+   npm run dev
    ```
-3. Buka peramban (browser) dan akses alamat berikut:
-   ```
-   http://127.0.0.1:18420
-   ```
+3. Buka peramban di `http://localhost:5173`. Semua permintaan API akan otomatis dialihkan (proxied) ke backend di port 18420.
+
+---
+
+## Pengujian Otomatis (Automated Tests)
+
+Jalankan unit tests suite untuk memverifikasi fungsionalitas core, enkripsi, dan API endpoint:
+
+```powershell
+.\venv\Scripts\pytest tests\ -v
+```
+
+---
+
+## Pemaketan Distribusi (Build Release)
+
+Untuk membuat paket rilis siap pakai:
+
+```powershell
+.\scripts\build_web.ps1
+```
+
+Paket rilis lengkap beserta skrip peluncur (`start.bat` & `start.sh`) akan terbentuk di direktori `release/LumieTL_Web`.

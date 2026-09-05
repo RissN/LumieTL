@@ -1,16 +1,17 @@
-# Shared core
+# Core & AI
 manga-image-translator @ git+https://github.com/zyddnys/manga-image-translator.git
 onnxruntime
 opencv-python
 Pillow
 httpx
 cryptography
-
-# Desktop
-PySide6
 keyring
 
-# Build & Test
-pyinstaller
+# Web Backend (FastAPI Monolith)
+fastapi
+uvicorn[standard]
+python-multipart
+
+# Testing
 pytest
 pytest-asyncio

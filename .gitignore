@@ -59,9 +59,10 @@ id_rsa
 id_ed25519
 
 # Node / Vue Frontend
-web/frontend/node_modules/
-web/frontend/dist/
-web/backend/frontend_dist/
+frontend/node_modules/
+frontend/dist/
+backend/frontend_dist/
+release/
 *.tsbuildinfo
 npm-debug.log*
 yarn-debug.log*

@@ -7,63 +7,47 @@ on:
   workflow_dispatch:
 
 jobs:
-  build-desktop:
-    runs-on: windows-latest
-    steps:
-      - uses: actions/checkout@v4
-
-      - name: Setup Python 3.11
-        uses: actions/setup-python@v5
-        with:
-          python-version: '3.11'
-
-      - name: Install dependencies
-        run: |
-          py -3.11 -m pip install --upgrade pip
-          pip install -r requirements.txt
-          pip install pyinstaller
-
-      - name: Build Desktop executable
-        run: pyinstaller LumieTL.spec --clean --noconfirm
-
-      - name: Build Inno Setup installer
-        run: |
-          choco install innosetup -y
-          & "C:\Program Files (x86)\Inno Setup 6\ISCC.exe" installer\setup.iss
-
-      - name: Upload Desktop installer
-        uses: actions/upload-artifact@v4
-        with:
-          name: LumieTL-Desktop
-          path: dist/LumieTL_Setup_*.exe
-
   build-web:
+    name: Build Web Monolith
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
 
-      - name: Package Monolith Web distribution
+      - name: Setup Node 20
+        uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+
+      - name: Build Vue 3 Frontend
+        run: |
+          cd frontend
+          npm install
+          npm run build
+
+      - name: Package Monolith Distribution
         run: |
           mkdir -p release/LumieTL_Web
-          cp -r web release/LumieTL_Web/
+          cp -r backend release/LumieTL_Web/
           cp -r core release/LumieTL_Web/
           cp -r security release/LumieTL_Web/
           cp -r utils release/LumieTL_Web/
-          cp requirements-web.txt release/LumieTL_Web/requirements.txt
-          echo "python -m web.backend.main" > release/LumieTL_Web/start.sh
-          echo "python -m web.backend.main" > release/LumieTL_Web/start.bat
+          cp requirements.txt release/LumieTL_Web/
+          cp run.py release/LumieTL_Web/
+          echo "python run.py" > release/LumieTL_Web/start.sh
+          echo "python run.py" > release/LumieTL_Web/start.bat
           chmod +x release/LumieTL_Web/start.sh
           PKG_VERSION="${{ github.ref_type == 'tag' && github.ref_name || 'v1.0.0' }}"
           cd release && zip -r "LumieTL_Web_${PKG_VERSION}.zip" LumieTL_Web/
 
-      - name: Upload Web zip
+      - name: Upload Web Artifact
         uses: actions/upload-artifact@v4
         with:
           name: LumieTL-Web
           path: release/LumieTL_Web_*.zip
 
   release:
-    needs: [build-desktop, build-web]
+    name: Publish Release
+    needs: [build-web]
     runs-on: ubuntu-latest
     permissions:
       contents: write
@@ -76,6 +60,5 @@ jobs:
         with:
           tag_name: ${{ github.ref_type == 'tag' && github.ref_name || 'v1.0.0' }}
           files: |
-            LumieTL-Desktop/*.exe
             LumieTL-Web/*.zip
           generate_release_notes: true
