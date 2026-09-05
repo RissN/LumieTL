@@ -4,15 +4,8 @@ import os
 import sys
 from pathlib import Path
 
-# Execution environment detection: frozen exe (PyInstaller) vs development
-IS_FROZEN = getattr(sys, "frozen", False)
-
-if IS_FROZEN:
-    BASE_DIR = Path(sys.executable).parent
-    ASSETS_DIR = Path(getattr(sys, "_MEIPASS", BASE_DIR)) / "assets"
-else:
-    BASE_DIR = Path(__file__).resolve().parent.parent
-    ASSETS_DIR = BASE_DIR / "assets"
+BASE_DIR = Path(__file__).resolve().parent.parent
+ASSETS_DIR = BASE_DIR / "assets"
 
 # User persistent data directory
 if sys.platform == "win32":

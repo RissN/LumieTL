@@ -22,19 +22,9 @@ class KeystoreBase(ABC):
 
 def get_keystore() -> KeystoreBase:
     """
-    Factory to return the appropriate keystore implementation.
-    
-    Windows Desktop uses Windows Credential Manager via keyring.
-    Web / Linux / fallback uses encrypted FileKeystore.
+    Factory to return the encrypted FileKeystore implementation for the web server.
     """
-    if sys.platform == "win32":
-        try:
-            from security.keystore_windows import WindowsKeystore
-            return WindowsKeystore()
-        except Exception:
-            # Fallback to encrypted file keystore if keyring backend fails
-            pass
-
-    from security.keystore_file import FileKeystore
     from core.config import KEYS_FILE
+    from security.keystore_file import FileKeystore
+
     return FileKeystore(KEYS_FILE)
