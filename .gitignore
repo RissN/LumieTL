@@ -20,42 +20,70 @@ wheels/
 .installed.cfg
 *.egg
 
-# Virtual Environment
+# Virtual Environment & Env files
 venv/
 env/
 ENV/
 .env
+.env.*
+!.env.example
 
 # Testing & Coverage
 .pytest_cache/
 .coverage
 htmlcov/
 
-# App local runtime data & secrets
+# App local runtime data & databases
 *.enc
 .master.key
 *.log
 history.db
+*.db
+*.sqlite
+*.sqlite3
 models/
 output/
 temp_uploads/
 batch_uploads/
 
+# Secrets, Credentials & Certificates
+*.pem
+*.key
+*.cert
+*.crt
+*.pfx
+*.p12
+credentials.json
+client_secret*.json
+id_rsa
+id_ed25519
+
 # Node / Vue Frontend
 web/frontend/node_modules/
 web/frontend/dist/
 web/backend/frontend_dist/
+*.tsbuildinfo
 npm-debug.log*
 yarn-debug.log*
 yarn-error.log*
 pnpm-debug.log*
 
-# OS / Editor files
+# OS / Editor / AI Tooling files
 .DS_Store
 Thumbs.db
 .vscode/
 .idea/
 *.swp
+*.bak
+*.tmp
+*.temp
+*~
+.gemini/
+.agents/
+.cursor/
+.claude/
 
-# Agent prompt
+# Agent prompt & local notes
 LumieTL-agent-prompt.md
+*.local.md
+

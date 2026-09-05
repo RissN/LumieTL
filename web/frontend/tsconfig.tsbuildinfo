@@ -1,1 +1,0 @@
-{"root":["./src/main.ts","./src/router/index.ts","./src/stores/settings.ts","./src/types/index.ts","./src/app.vue","./src/components/dropzone.vue","./src/components/imageviewer.vue","./src/components/toast.vue","./src/pages/pagebatch.vue","./src/pages/pagehistory.vue","./src/pages/pagesettings.vue","./src/pages/pagetranslate.vue","./vite.config.ts"],"version":"5.7.3"}
