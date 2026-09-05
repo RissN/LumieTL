@@ -1,0 +1,12 @@
+# Inherit core dependencies
+manga-image-translator
+onnxruntime
+opencv-python
+Pillow
+httpx
+cryptography
+
+# Web only
+fastapi
+uvicorn[standard]
+python-multipart

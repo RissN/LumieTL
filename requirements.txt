@@ -1,0 +1,16 @@
+# Shared core
+manga-image-translator
+onnxruntime
+opencv-python
+Pillow
+httpx
+cryptography
+
+# Desktop
+PySide6
+keyring
+
+# Build & Test
+pyinstaller
+pytest
+pytest-asyncio

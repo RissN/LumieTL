@@ -1,0 +1,90 @@
+name: Release
+
+on:
+  push:
+    tags:
+      - 'v*'
+
+jobs:
+  build-desktop:
+    runs-on: windows-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Setup Python 3.11
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+
+      - name: Install dependencies
+        run: |
+          py -3.11 -m pip install --upgrade pip
+          pip install -r requirements.txt
+          pip install pyinstaller
+
+      - name: Build Desktop executable
+        run: pyinstaller LumieTL.spec --clean --noconfirm
+
+      - name: Build Inno Setup installer
+        run: |
+          choco install innosetup -y
+          & "C:\Program Files (x86)\Inno Setup 6\ISCC.exe" installer\setup.iss
+
+      - name: Upload Desktop installer
+        uses: actions/upload-artifact@v4
+        with:
+          name: LumieTL-Desktop
+          path: dist/LumieTL_Setup_*.exe
+
+  build-web:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Setup Node 20
+        uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+
+      - name: Build frontend
+        run: |
+          cd web/frontend
+          npm ci
+          npm run build
+
+      - name: Package web distribution
+        run: |
+          mkdir -p release/LumieTL_Web
+          cp -r web/backend release/LumieTL_Web/
+          cp -r web/frontend/dist release/LumieTL_Web/frontend_dist/
+          cp -r core release/LumieTL_Web/
+          cp -r security release/LumieTL_Web/
+          cp -r utils release/LumieTL_Web/
+          cp requirements-web.txt release/LumieTL_Web/requirements.txt
+          echo "uvicorn web.backend.main:app --host 0.0.0.0 --port 18420" > release/LumieTL_Web/start.sh
+          echo "uvicorn web.backend.main:app --host 127.0.0.1 --port 18420" > release/LumieTL_Web/start.bat
+          chmod +x release/LumieTL_Web/start.sh
+          cd release && zip -r LumieTL_Web_v${{ github.ref_name }}.zip LumieTL_Web/
+
+      - name: Upload Web zip
+        uses: actions/upload-artifact@v4
+        with:
+          name: LumieTL-Web
+          path: release/LumieTL_Web_*.zip
+
+  release:
+    needs: [build-desktop, build-web]
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+    steps:
+      - name: Download all artifacts
+        uses: actions/download-artifact@v4
+
+      - name: Create GitHub Release
+        uses: softprops/action-gh-release@v2
+        with:
+          files: |
+            LumieTL-Desktop/*.exe
+            LumieTL-Web/*.zip
+          generate_release_notes: true
