@@ -1,5 +1,5 @@
 # Shared core
-manga-image-translator
+manga-image-translator @ git+https://github.com/zyddnys/manga-image-translator.git
 onnxruntime
 opencv-python
 Pillow

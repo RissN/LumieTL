@@ -35,7 +35,6 @@ LumieTL adalah perangkat lunak penerjemah otomatis (auto-translator) untuk manga
 ### Prasyarat Sistem
 - Python 3.11 (64-bit)
 - Git
-- Node.js versi 20 atau lebih baru (hanya diperlukan untuk antarmuka web)
 
 ---
 
@@ -59,25 +58,18 @@ LumieTL adalah perangkat lunak penerjemah otomatis (auto-translator) untuk manga
 
 ---
 
-### 2. Menjalankan Versi Web
+### 2. Menjalankan Versi Web (Monolith)
 
 1. Aktifkan virtual environment dan pasang dependensi web:
    ```powershell
    .\venv\Scripts\Activate.ps1
    pip install -r requirements-web.txt
    ```
-2. Kompilasi aset antarmuka frontend (Vue 3):
-   ```powershell
-   cd web\frontend
-   npm install
-   npm run build
-   cd ..\..
-   ```
-3. Jalankan backend server:
+2. Jalankan server web LumieTL:
    ```powershell
    python -m web.backend.main
    ```
-4. Buka peramban (browser) dan akses alamat berikut:
+3. Buka peramban (browser) dan akses alamat berikut:
    ```
    http://127.0.0.1:18420
    ```

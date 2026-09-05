@@ -1,22 +1,23 @@
-# Build LumieTL Web package
+# Package LumieTL Web Monolith
 $ErrorActionPreference = "Stop"
 Set-Location "$PSScriptRoot\.."
 
-Write-Host ">>> Membangun frontend Vue 3 + Tailwind..." -ForegroundColor Cyan
-Set-Location "web\frontend"
-npm run build
-if ($LASTEXITCODE -ne 0) {
-    Write-Error ">>> Gagal melakukan build frontend Vue!"
-    exit 1
-}
+Write-Host ">>> Menyiapkan LumieTL Web Monolith..." -ForegroundColor Cyan
+$releaseDir = "release\LumieTL_Web"
 
-Write-Host ">>> Menyalin frontend dist ke backend/frontend_dist..." -ForegroundColor Cyan
-Set-Location "..\.."
-$targetDist = "web\backend\frontend_dist"
-if (Test-Path $targetDist) {
-    Remove-Item $targetDist -Recurse -Force
+if (Test-Path $releaseDir) {
+    Remove-Item $releaseDir -Recurse -Force
 }
-Copy-Item "web\frontend\dist" -Destination $targetDist -Recurse
+New-Item -ItemType Directory -Path $releaseDir -Force | Out-Null
 
-Write-Host ">>> Web version siap dijalankan!" -ForegroundColor Green
-Write-Host "    Jalankan perintah: .\venv\Scripts\python -m web.backend.main" -ForegroundColor Yellow
+Copy-Item "web" -Destination $releaseDir -Recurse
+Copy-Item "core" -Destination $releaseDir -Recurse
+Copy-Item "security" -Destination $releaseDir -Recurse
+Copy-Item "utils" -Destination $releaseDir -Recurse
+Copy-Item "requirements-web.txt" -Destination "$releaseDir\requirements.txt"
+
+Set-Content -Path "$releaseDir\start.bat" -Value "python -m web.backend.main"
+Set-Content -Path "$releaseDir\start.sh" -Value "python -m web.backend.main"
+
+Write-Host ">>> Paket LumieTL Web Monolith berhasil dibuat di $releaseDir!" -ForegroundColor Green
+Write-Host "    Jalankan perintah: python -m web.backend.main" -ForegroundColor Yellow

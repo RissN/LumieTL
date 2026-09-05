@@ -42,30 +42,19 @@ jobs:
     steps:
       - uses: actions/checkout@v4
 
-      - name: Setup Node 20
-        uses: actions/setup-node@v4
-        with:
-          node-version: '20'
-
-      - name: Build frontend
-        run: |
-          cd web/frontend
-          npm ci
-          npm run build
-
-      - name: Package web distribution
+      - name: Package Monolith Web distribution
         run: |
           mkdir -p release/LumieTL_Web
-          cp -r web/backend release/LumieTL_Web/
-          cp -r web/frontend/dist release/LumieTL_Web/frontend_dist/
+          cp -r web release/LumieTL_Web/
           cp -r core release/LumieTL_Web/
           cp -r security release/LumieTL_Web/
           cp -r utils release/LumieTL_Web/
           cp requirements-web.txt release/LumieTL_Web/requirements.txt
-          echo "uvicorn web.backend.main:app --host 0.0.0.0 --port 18420" > release/LumieTL_Web/start.sh
-          echo "uvicorn web.backend.main:app --host 127.0.0.1 --port 18420" > release/LumieTL_Web/start.bat
+          echo "python -m web.backend.main" > release/LumieTL_Web/start.sh
+          echo "python -m web.backend.main" > release/LumieTL_Web/start.bat
           chmod +x release/LumieTL_Web/start.sh
-          cd release && zip -r LumieTL_Web_v${{ github.ref_name }}.zip LumieTL_Web/
+          PKG_VERSION="${{ github.ref_type == 'tag' && github.ref_name || 'v1.0.0' }}"
+          cd release && zip -r "LumieTL_Web_${PKG_VERSION}.zip" LumieTL_Web/
 
       - name: Upload Web zip
         uses: actions/upload-artifact@v4

@@ -48,31 +48,24 @@ app.include_router(history.router, prefix="/api/history", tags=["history"])
 app.include_router(settings.router, prefix="/api/settings", tags=["settings"])
 
 
-# Static frontend mounting (Vite dist)
-def _find_frontend_dist() -> Path | None:
-    candidates = [
-        Path(__file__).parent / "frontend_dist",
-        Path(__file__).parent.parent / "frontend" / "dist",
-    ]
-    for c in candidates:
-        if c.exists() and (c / "index.html").exists():
-            return c
-    return None
+# Static frontend mounting (Monolith architecture: HTML, CSS, JS served directly)
+STATIC_DIR = Path(__file__).resolve().parent.parent / "static"
 
+if STATIC_DIR.exists():
+    app.mount("/static", StaticFiles(directory=str(STATIC_DIR)), name="static")
 
-dist_dir = _find_frontend_dist()
-if dist_dir:
-    app.mount("/", StaticFiles(directory=str(dist_dir), html=True), name="frontend")
-    logger.info("Serving frontend static assets from %s", dist_dir)
-else:
-    @app.get("/")
-    async def index():
-        return {
-            "name": "LumieTL API Server",
-            "version": "1.0.0",
-            "status": "online",
-            "message": "Frontend belum di-build. Jalankan `npm run build` pada folder web/frontend.",
-        }
+@app.get("/")
+async def root():
+    """Serve the monolithic frontend entry point."""
+    index_file = STATIC_DIR / "index.html"
+    if index_file.exists():
+        from fastapi.responses import FileResponse
+        return FileResponse(str(index_file))
+    return {
+        "name": "LumieTL API Server",
+        "version": "1.0.0",
+        "status": "online",
+    }
 
 
 def run_server():
