@@ -8,7 +8,7 @@ AppName={#MyAppName}
 AppVersion={#MyAppVersion}
 DefaultDirName={autopf}\{#MyAppName}
 DefaultGroupName={#MyAppName}
-OutputDir=dist
+OutputDir=..\dist
 OutputBaseFilename=LumieTL_Setup_v{#MyAppVersion}
 SetupIconFile=..\assets\icon.ico
 Compression=lzma2/ultra64
@@ -21,7 +21,6 @@ MinVersion=10.0.17763
 ArchitecturesInstallIn64BitMode=x64
 
 [Languages]
-Name: "indonesian"; MessagesFile: "compiler:Languages\Indonesian.isl"
 Name: "english"; MessagesFile: "compiler:Default.isl"
 
 [Tasks]
