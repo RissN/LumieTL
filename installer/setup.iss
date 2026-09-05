@@ -38,7 +38,7 @@ Name: "{commondesktop}\{#MyAppName}";     Filename: "{app}\{#MyAppExeName}"; Tas
 Filename: "{app}\{#MyAppExeName}"; Flags: nowait postinstall skipifsilent
 
 [UninstallRun]
-Filename: "powershell.exe"; Parameters: "-NoProfile -ExecutionPolicy Bypass -Command ""try { cmdkey /list | Select-String 'Target:\s*(LumieTL.*)' | ForEach-Object { cmdkey /delete:$($_.Matches[0].Groups[1].Value.Trim()) } } catch {}"""; Flags: runhidden
+Filename: "powershell.exe"; Parameters: "-NoProfile -ExecutionPolicy Bypass -Command ""try {{ cmdkey /list | Select-String 'Target:\s*(LumieTL.*)' | ForEach-Object {{ cmdkey /delete:$($_.Matches[0].Groups[1].Value.Trim()) }} }} catch {{}}"""; Flags: runhidden
 
 [UninstallDelete]
 Type: filesandordirs; Name: "{userappdata}\{#MyAppName}"
