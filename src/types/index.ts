@@ -62,12 +62,14 @@ export interface ModelInfo {
   name: string
   filename: string
   size_mb: number
+  url?: string
   downloaded: boolean
   sha256_ok: boolean
 }
 
 export interface ModelStatus {
   ready: boolean
+  model_dir?: string
   models: ModelInfo[]
 }
 
@@ -76,6 +78,10 @@ export interface ModelDownloadProgress {
   progress: number
   total: number
   current_model: string
+  percent?: number
+  overall_percent?: number
+  completed_count?: number
+  total_models?: number
   error: string | null
 }
 
