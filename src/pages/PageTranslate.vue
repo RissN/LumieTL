@@ -3,6 +3,7 @@ import { ref, onMounted } from 'vue'
 import { useTranslationStore } from '@/stores/translation'
 import { useSettingsStore } from '@/stores/settings'
 import { useToast } from '@/composables/useToast'
+import { useModal } from '@/composables/useModal'
 import DropZone from '@/components/DropZone.vue'
 import ImageViewer from '@/components/ImageViewer.vue'
 import LangSelector from '@/components/LangSelector.vue'
@@ -10,6 +11,7 @@ import LangSelector from '@/components/LangSelector.vue'
 const store = useTranslationStore()
 const settingsStore = useSettingsStore()
 const { showToast } = useToast()
+const { showWarning, showError } = useModal()
 
 const viewMode = ref<'slider' | 'side' | 'result'>('slider')
 
@@ -35,7 +37,10 @@ function onFilesSelected(files: FileList | File[]) {
 
 function swapLanguages() {
   if (store.sourceLang === 'auto') {
-    showToast('Tidak bisa menukar bahasa saat sumber adalah Auto-detect', 'warning')
+    showWarning(
+      'Tukar Bahasa Tidak Valid',
+      'Bahasa sumber saat ini diatur ke Auto-detect. Silakan pilih bahasa spesifik (seperti Jepang, Korea, atau Mandarin) untuk dapat menukar bahasa.'
+    )
     return
   }
   const temp = store.sourceLang
@@ -49,9 +54,14 @@ async function handleTranslate() {
     await store.translate()
     if (store.resultBase64) {
       showToast(`Terjemahan selesai dalam ${store.duration}s`, 'success')
+    } else if (store.error) {
+      showError('Gagal Menerjemahkan', store.error)
     }
   } catch {
-    showToast(store.error || 'Terjemahan gagal', 'error')
+    showError(
+      'Gagal Menerjemahkan Gambar',
+      store.error || 'Terjadi kendala teknis saat memproses deteksi atau terjemahan AI.'
+    )
   }
 }
 
@@ -65,7 +75,7 @@ async function copyResultToClipboard() {
     ])
     showToast('Gambar berhasil disalin ke clipboard!', 'success')
   } catch {
-    showToast('Gagal menyalin gambar ke clipboard', 'error')
+    showError('Gagal Menyalin Gambar', 'Izin clipboard ditolak oleh peramban.')
   }
 }
 </script>
@@ -216,19 +226,6 @@ async function copyResultToClipboard() {
                 <p class="loading-desc">Mendeteksi balon percakapan, inpainting, dan terjemahan AI</p>
               </div>
             </div>
-          </div>
-        </div>
-
-        <!-- Error Banner -->
-        <div v-if="store.error" class="error-banner">
-          <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" class="error-icon">
-            <circle cx="12" cy="12" r="10"/>
-            <line x1="12" y1="8" x2="12" y2="12"/>
-            <line x1="12" y1="16" x2="12.01" y2="16"/>
-          </svg>
-          <div class="error-content">
-            <span class="error-title">Gagal Menerjemahkan</span>
-            <span class="error-detail">{{ store.error }}</span>
           </div>
         </div>
 

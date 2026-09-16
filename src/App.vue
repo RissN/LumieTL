@@ -1,6 +1,7 @@
 <script setup lang="ts">
 import AppSidebar from '@/components/AppSidebar.vue'
 import Toast from '@/components/Toast.vue'
+import AppModal from '@/components/AppModal.vue'
 </script>
 
 <template>
@@ -12,6 +13,7 @@ import Toast from '@/components/Toast.vue'
       </div>
     </main>
     <Toast />
+    <AppModal />
   </div>
 </template>
 

@@ -2,9 +2,11 @@
 import { ref, computed, onMounted } from 'vue'
 import api from '@/composables/useApi'
 import { useToast } from '@/composables/useToast'
+import { useModal } from '@/composables/useModal'
 import type { HistoryEntry, HistoryResponse } from '@/types'
 
 const { showToast } = useToast()
+const { showConfirm, showError } = useModal()
 
 const entries = ref<HistoryEntry[]>([])
 const total = ref(0)
@@ -32,24 +34,41 @@ async function fetchHistory() {
     entries.value = res.data.items
     total.value = res.data.total
   } catch (e: any) {
-    showToast(e.message, 'error')
+    showError('Gagal Mengambil Riwayat', e.message)
   } finally {
     loading.value = false
   }
 }
 
 async function deleteEntry(id: number) {
+  const confirmed = await showConfirm({
+    title: 'Hapus Catatan Riwayat?',
+    message: 'Catatan ini akan dihapus secara permanen dari basis data riwayat.',
+    confirmText: 'Hapus',
+    cancelText: 'Batal',
+    danger: true,
+  })
+  if (!confirmed) return
+
   try {
     await api.delete(`/history/${id}`)
     showToast('Riwayat berhasil dihapus', 'success')
     await fetchHistory()
   } catch (e: any) {
-    showToast(e.message, 'error')
+    showError('Gagal Menghapus Riwayat', e.message)
   }
 }
 
 async function clearAll() {
-  if (!confirm('Apakah Anda yakin ingin menghapus seluruh riwayat terjemahan?')) return
+  const confirmed = await showConfirm({
+    title: 'Hapus Seluruh Riwayat?',
+    message: 'Apakah Anda yakin ingin menghapus seluruh riwayat terjemahan? Tindakan ini tidak dapat dibatalkan.',
+    confirmText: 'Bersihkan Semua',
+    cancelText: 'Batal',
+    danger: true,
+  })
+  if (!confirmed) return
+
   try {
     await api.delete('/history/all')
     showToast('Seluruh riwayat berhasil dibersihkan', 'success')
@@ -57,7 +76,7 @@ async function clearAll() {
     total.value = 0
     page.value = 0
   } catch (e: any) {
-    showToast(e.message, 'error')
+    showError('Gagal Membersihkan Riwayat', e.message)
   }
 }
 

@@ -2,11 +2,13 @@
 import { ref, onMounted } from 'vue'
 import { useSettingsStore } from '@/stores/settings'
 import { useToast } from '@/composables/useToast'
+import { useModal } from '@/composables/useModal'
 import LangSelector from '@/components/LangSelector.vue'
 import ModelStatus from '@/components/ModelStatus.vue'
 
 const store = useSettingsStore()
 const { showToast } = useToast()
+const { showWarning, showError, showConfirm } = useModal()
 
 // Local form state for API keys
 const deeplKey = ref('')
@@ -30,24 +32,32 @@ async function saveSettings() {
     })
     showToast('Pengaturan berhasil disimpan', 'success')
   } catch {
-    showToast('Gagal menyimpan pengaturan', 'error')
+    showError('Gagal Menyimpan Pengaturan', 'Terjadi kesalahan saat menyimpan pengaturan ke server.')
   }
 }
 
 async function resetSettings() {
-  if (!confirm('Apakah Anda yakin ingin mereset semua pengaturan ke nilai bawaan?')) return
+  const confirmed = await showConfirm({
+    title: 'Reset Pengaturan ke Bawaan?',
+    message: 'Semua preferensi bahasa dan konfigurasi akan dikembalikan ke nilai default pabrik.',
+    confirmText: 'Reset Pengaturan',
+    cancelText: 'Batal',
+    danger: true,
+  })
+  if (!confirmed) return
+
   try {
     await store.resetSettings()
     showToast('Pengaturan telah direset ke bawaan', 'success')
   } catch {
-    showToast('Gagal mereset pengaturan', 'error')
+    showError('Gagal Mereset Pengaturan', 'Terjadi kesalahan saat memulihkan pengaturan default.')
   }
 }
 
 async function saveApiKey(provider: string) {
   const key = provider === 'deepl' ? deeplKey.value : openaiKey.value
   if (!key.trim()) {
-    showToast('API key tidak boleh kosong', 'warning')
+    showWarning('Kunci API Kosong', `Silakan ketikkan atau tempel API key ${provider.toUpperCase()} terlebih dahulu sebelum menyimpan.`)
     return
   }
   savingKey.value = provider
@@ -57,19 +67,27 @@ async function saveApiKey(provider: string) {
     else openaiKey.value = ''
     showToast(`API key ${provider.toUpperCase()} berhasil disimpan & dienkripsi`, 'success')
   } catch {
-    showToast(`Gagal menyimpan API key ${provider}`, 'error')
+    showError(`Gagal Menyimpan API Key`, `Tidak dapat menyimpan kunci API ${provider.toUpperCase()}. Pastikan file enkripsi dapat diakses.`)
   } finally {
     savingKey.value = null
   }
 }
 
 async function removeApiKey(provider: string) {
-  if (!confirm(`Hapus API key ${provider.toUpperCase()}?`)) return
+  const confirmed = await showConfirm({
+    title: `Hapus Kunci API ${provider.toUpperCase()}?`,
+    message: `Kunci API yang tersimpan di disk lokal akan dihapus secara permanen. Anda perlu memasukkannya kembali jika ingin menggunakan engine ini.`,
+    confirmText: 'Hapus Kunci',
+    cancelText: 'Batal',
+    danger: true,
+  })
+  if (!confirmed) return
+
   try {
     await store.deleteApiKey(provider)
-    showToast(`API key ${provider.toUpperCase()} dihapus`, 'success')
+    showToast(`API key ${provider.toUpperCase()} berhasil dihapus`, 'success')
   } catch {
-    showToast(`Gagal menghapus API key ${provider}`, 'error')
+    showError('Gagal Menghapus API Key', `Terjadi kesalahan saat menghapus kunci API ${provider.toUpperCase()}.`)
   }
 }
 </script>

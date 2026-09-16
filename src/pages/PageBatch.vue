@@ -3,6 +3,7 @@ import { ref, computed, onMounted } from 'vue'
 import { useBatchStore } from '@/stores/batch'
 import { useSettingsStore } from '@/stores/settings'
 import { useToast } from '@/composables/useToast'
+import { useModal } from '@/composables/useModal'
 import DropZone from '@/components/DropZone.vue'
 import BatchTable from '@/components/BatchTable.vue'
 import LangSelector from '@/components/LangSelector.vue'
@@ -10,6 +11,7 @@ import LangSelector from '@/components/LangSelector.vue'
 const batch = useBatchStore()
 const settingsStore = useSettingsStore()
 const { showToast } = useToast()
+const { showWarning, showError, showConfirm } = useModal()
 
 const folderInput = ref<HTMLInputElement | null>(null)
 
@@ -45,7 +47,10 @@ function onFolderChange(e: Event) {
       batch.addFiles(imageFiles)
       showToast(`${imageFiles.length} file manga dari folder dimasukkan ke antrean`, 'success')
     } else {
-      showToast('Tidak ada file gambar valid dalam folder yang dipilih', 'warning')
+      showWarning(
+        'Tidak Ada Gambar Valid',
+        'Folder yang Anda pilih tidak berisi berkas gambar yang didukung (JPG, PNG, WebP, AVIF).'
+      )
     }
     input.value = ''
   }
@@ -61,13 +66,24 @@ async function handleStart() {
     await batch.startBatch()
     showToast('Batch processing dimulai!', 'info')
   } catch {
-    showToast(batch.error || 'Gagal memulai batch', 'error')
+    showError(
+      'Gagal Memulai Batch',
+      batch.error || 'Terjadi kesalahan saat menginisialisasi antrean batch.'
+    )
   }
 }
 
-function handleCancel() {
+async function handleCancel() {
+  const confirmed = await showConfirm({
+    title: 'Hentikan Proses Batch?',
+    message: 'Proses penerjemahan seluruh gambar yang tersisa dalam antrean akan dibatalkan.',
+    confirmText: 'Ya, Hentikan',
+    cancelText: 'Lanjutkan Proses',
+    danger: true,
+  })
+  if (!confirmed) return
   batch.cancelBatch()
-  showToast('Batch dibatalkan', 'warning')
+  showToast('Batch berhasil dibatalkan', 'info')
 }
 </script>
 
@@ -280,16 +296,6 @@ function handleCancel() {
           </button>
         </div>
       </div>
-    </div>
-
-    <!-- Error Alert -->
-    <div v-if="batch.error" class="error-banner">
-      <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-        <circle cx="12" cy="12" r="10" />
-        <line x1="12" y1="8" x2="12" y2="12" />
-        <line x1="12" y1="16" x2="12.01" y2="16" />
-      </svg>
-      <span>{{ batch.error }}</span>
     </div>
   </div>
 </template>
