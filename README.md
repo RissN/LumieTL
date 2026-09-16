@@ -6,7 +6,7 @@ Jalankan server secara lokal (localhost), akses via browser. Terjemahkan gambar 
 
 ---
 
-## ✨ Fitur
+## Fitur
 
 - **Terjemahkan** — Upload gambar, pilih bahasa, lihat hasil before/after dengan slider
 - **Batch Processing** — Terjemahkan puluhan gambar sekaligus, download sebagai ZIP
@@ -18,7 +18,7 @@ Jalankan server secara lokal (localhost), akses via browser. Terjemahkan gambar 
 
 ---
 
-## 🚀 Quick Start
+## Quick Start
 
 ### Prasyarat
 - Python 3.11
@@ -64,7 +64,7 @@ Buka **http://localhost:18420** di browser.
 
 ---
 
-## ⚙️ Konfigurasi
+## Konfigurasi
 
 ### Environment Variables
 
@@ -81,7 +81,7 @@ Masukkan API key via halaman **Pengaturan** di browser. Key disimpan terenkripsi
 
 ---
 
-## 🏗️ Stack
+## Stack
 
 | Layer | Teknologi |
 |---|---|
@@ -93,6 +93,6 @@ Masukkan API key via halaman **Pengaturan** di browser. Key disimpan terenkripsi
 
 ---
 
-## 📄 License
+## License
 
 MIT
