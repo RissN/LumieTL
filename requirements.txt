@@ -1,4 +1,4 @@
-manga-image-translator
+git+https://github.com/zyddnys/manga-image-translator.git
 torch
 torchvision
 opencv-python

@@ -91,7 +91,7 @@ async def translate_image(
     except ImportError:
         raise TranslationError(
             "manga-image-translator is not installed. "
-            "Run: pip install manga-image-translator"
+            "Run: pip install git+https://github.com/zyddnys/manga-image-translator.git"
         )
     except TranslationError:
         raise

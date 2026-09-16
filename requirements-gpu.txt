@@ -2,9 +2,10 @@
 # Install these INSTEAD of the default torch/torchvision:
 #   pip install -r requirements-gpu.txt
 
-manga-image-translator
-torch --index-url https://download.pytorch.org/whl/cu121
-torchvision --index-url https://download.pytorch.org/whl/cu121
+--extra-index-url https://download.pytorch.org/whl/cu121
+git+https://github.com/zyddnys/manga-image-translator.git
+torch
+torchvision
 opencv-python
 Pillow
 httpx
