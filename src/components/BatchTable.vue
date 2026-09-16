@@ -9,18 +9,6 @@ defineEmits<{
   retry: [filename: string]
 }>()
 
-const statusMap: Record<string, { icon: string; label: string; cls: string }> = {
-  pending:     { icon: '⏸', label: 'Menunggu', cls: 'status-pending' },
-  processing:  { icon: '⏳', label: 'Memproses', cls: 'status-processing' },
-  done:        { icon: '✅', label: 'Selesai', cls: 'status-done' },
-  error:       { icon: '❌', label: 'Gagal', cls: 'status-error' },
-  cancelled:   { icon: '⏹', label: 'Dibatalkan', cls: 'status-cancelled' },
-}
-
-function getStatus(status: string) {
-  return statusMap[status] || statusMap.pending
-}
-
 function formatDuration(d: number): string {
   if (d <= 0) return '—'
   return `${d.toFixed(1)}s`
@@ -28,30 +16,70 @@ function formatDuration(d: number): string {
 </script>
 
 <template>
-  <div class="batch-table-wrapper">
+  <div class="batch-table-wrapper glass-card">
     <table class="batch-table">
       <thead>
         <tr>
-          <th>Nama File</th>
-          <th>Status</th>
+          <th>File Manga</th>
+          <th>Status Proses</th>
           <th>Durasi</th>
-          <th>Aksi</th>
+          <th class="text-right">Keterangan</th>
         </tr>
       </thead>
       <tbody>
-        <tr v-for="file in files" :key="file.filename">
-          <td class="cell-filename" :title="file.filename">{{ file.filename }}</td>
+        <tr v-for="file in files" :key="file.filename" class="table-row">
+          <td class="cell-filename">
+            <div class="file-info-group">
+              <div class="file-icon-box">
+                <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                  <rect x="3" y="3" width="18" height="18" rx="2" ry="2"/>
+                  <circle cx="8.5" cy="8.5" r="1.5"/>
+                  <polyline points="21 15 16 10 5 21"/>
+                </svg>
+              </div>
+              <span class="file-name-text" :title="file.filename">{{ file.filename }}</span>
+            </div>
+          </td>
           <td>
-            <span :class="['status-badge', getStatus(file.status).cls]">
-              <span class="status-icon">{{ getStatus(file.status).icon }}</span>
-              {{ getStatus(file.status).label }}
+            <!-- Pending -->
+            <span v-if="file.status === 'pending'" class="status-badge status-pending">
+              <span class="status-dot-pulse"></span>
+              Menunggu
+            </span>
+
+            <!-- Processing -->
+            <span v-else-if="file.status === 'processing'" class="status-badge status-processing">
+              <span class="spinner-tiny"></span>
+              Memproses AI
+            </span>
+
+            <!-- Done -->
+            <span v-else-if="file.status === 'done'" class="status-badge status-done">
+              <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3">
+                <polyline points="20 6 9 17 4 12" />
+              </svg>
+              Selesai
+            </span>
+
+            <!-- Error -->
+            <span v-else-if="file.status === 'error'" class="status-badge status-error">
+              <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3">
+                <line x1="18" y1="6" x2="6" y2="18"/>
+                <line x1="6" y1="6" x2="18" y2="18"/>
+              </svg>
+              Gagal
+            </span>
+
+            <!-- Cancelled -->
+            <span v-else-if="file.status === 'cancelled'" class="status-badge status-cancelled">
+              Dibatalkan
             </span>
           </td>
           <td class="cell-duration">{{ formatDuration(file.duration) }}</td>
-          <td>
+          <td class="text-right">
             <button
               v-if="file.status === 'error'"
-              class="btn-retry"
+              class="btn btn-secondary btn-sm"
               @click="$emit('retry', file.filename)"
             >
               Coba Lagi
@@ -59,6 +87,10 @@ function formatDuration(d: number): string {
             <span v-else-if="file.error" class="error-msg" :title="file.error">
               {{ file.error }}
             </span>
+            <span v-else-if="file.status === 'done'" class="success-msg">
+              Siap diunduh
+            </span>
+            <span v-else class="text-muted">—</span>
           </td>
         </tr>
       </tbody>
@@ -69,8 +101,7 @@ function formatDuration(d: number): string {
 <style scoped>
 .batch-table-wrapper {
   overflow-x: auto;
-  border: 1px solid var(--border);
-  border-radius: 10px;
+  border-radius: 14px;
 }
 
 .batch-table {
@@ -80,113 +111,154 @@ function formatDuration(d: number): string {
 }
 
 .batch-table thead {
-  background: var(--bg-elevated);
+  background: rgba(255, 255, 255, 0.02);
+  border-bottom: 1px solid var(--border);
 }
 
 .batch-table th {
-  padding: 10px 14px;
+  padding: 12px 16px;
   text-align: left;
   color: var(--text-secondary);
-  font-weight: 500;
-  font-size: 12px;
+  font-family: var(--font-heading);
+  font-weight: 600;
+  font-size: 11.5px;
   text-transform: uppercase;
-  letter-spacing: 0.5px;
-  border-bottom: 1px solid var(--border);
+  letter-spacing: 0.6px;
 }
 
-.batch-table td {
-  padding: 10px 14px;
-  border-bottom: 1px solid var(--border);
-  color: var(--text-primary);
+.text-right {
+  text-align: right !important;
 }
 
-.batch-table tr:last-child td {
+.table-row {
+  border-bottom: 1px solid rgba(255, 255, 255, 0.04);
+  transition: background 0.15s ease;
+}
+
+.table-row:last-child {
   border-bottom: none;
 }
 
-.batch-table tr:hover td {
-  background: color-mix(in srgb, var(--bg-elevated) 50%, transparent);
+.table-row:hover {
+  background: rgba(255, 255, 255, 0.03);
 }
 
-.cell-filename {
-  max-width: 280px;
+.batch-table td {
+  padding: 12px 16px;
+  color: var(--text-primary);
+  vertical-align: middle;
+}
+
+.file-info-group {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+}
+
+.file-icon-box {
+  width: 32px;
+  height: 32px;
+  border-radius: 8px;
+  background: rgba(99, 102, 241, 0.1);
+  color: #818CF8;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  flex-shrink: 0;
+}
+
+.file-name-text {
+  max-width: 320px;
   overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;
+  font-weight: 500;
+  color: var(--text-primary);
 }
 
 .cell-duration {
-  font-variant-numeric: tabular-nums;
+  font-family: monospace;
+  font-size: 12px;
   color: var(--text-secondary);
 }
 
 .status-badge {
   display: inline-flex;
   align-items: center;
-  gap: 5px;
-  padding: 3px 8px;
-  border-radius: 6px;
-  font-size: 12px;
-  font-weight: 500;
-}
-
-.status-icon {
-  font-size: 13px;
+  gap: 6px;
+  padding: 4px 10px;
+  border-radius: 8px;
+  font-size: 11.5px;
+  font-weight: 600;
+  letter-spacing: 0.2px;
 }
 
 .status-pending {
-  background: color-mix(in srgb, var(--text-secondary) 10%, transparent);
+  background: rgba(255, 255, 255, 0.06);
   color: var(--text-secondary);
+  border: 1px solid rgba(255, 255, 255, 0.08);
+}
+
+.status-dot-pulse {
+  width: 6px;
+  height: 6px;
+  border-radius: 50%;
+  background: var(--text-muted);
 }
 
 .status-processing {
-  background: color-mix(in srgb, var(--accent) 15%, transparent);
-  color: var(--accent);
-  animation: pulse-opacity 1.5s ease-in-out infinite;
+  background: rgba(99, 102, 241, 0.15);
+  color: #A5B4FC;
+  border: 1px solid rgba(99, 102, 241, 0.3);
+}
+
+.spinner-tiny {
+  width: 12px;
+  height: 12px;
+  border: 2px solid rgba(165, 180, 252, 0.3);
+  border-top-color: #A5B4FC;
+  border-radius: 50%;
+  animation: spin 0.7s linear infinite;
 }
 
 .status-done {
-  background: color-mix(in srgb, var(--success) 15%, transparent);
-  color: var(--success);
+  background: rgba(16, 185, 129, 0.12);
+  color: #34D399;
+  border: 1px solid rgba(16, 185, 129, 0.25);
 }
 
 .status-error {
-  background: color-mix(in srgb, var(--error) 15%, transparent);
-  color: var(--error);
+  background: rgba(244, 63, 94, 0.12);
+  color: #FB7185;
+  border: 1px solid rgba(244, 63, 94, 0.25);
 }
 
 .status-cancelled {
-  background: color-mix(in srgb, var(--warning) 15%, transparent);
-  color: var(--warning);
-}
-
-@keyframes pulse-opacity {
-  0%, 100% { opacity: 1; }
-  50% { opacity: 0.6; }
-}
-
-.btn-retry {
-  padding: 4px 10px;
-  background: transparent;
-  color: var(--accent);
-  border: 1px solid var(--accent);
-  border-radius: 6px;
-  font-size: 12px;
-  cursor: pointer;
-  transition: all 0.15s ease;
-}
-
-.btn-retry:hover {
-  background: color-mix(in srgb, var(--accent) 15%, transparent);
+  background: rgba(245, 158, 11, 0.12);
+  color: #FBBF24;
 }
 
 .error-msg {
-  font-size: 12px;
+  font-size: 11.5px;
   color: var(--error);
-  max-width: 180px;
+  max-width: 200px;
   overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;
   display: inline-block;
+}
+
+.success-msg {
+  font-size: 12px;
+  color: #34D399;
+  font-weight: 500;
+}
+
+.text-muted {
+  color: var(--text-muted);
+}
+
+@keyframes spin {
+  to { transform: rotate(360deg); }
 }
 </style>

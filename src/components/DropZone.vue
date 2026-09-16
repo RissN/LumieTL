@@ -1,13 +1,14 @@
 <script setup lang="ts">
-import { ref } from 'vue'
+import { ref, onMounted, onUnmounted } from 'vue'
 
 const props = defineProps<{
   accept?: string
   multiple?: boolean
+  compact?: boolean
 }>()
 
 const emit = defineEmits<{
-  files: [files: FileList]
+  files: [files: FileList | File[]]
 }>()
 
 const isDragging = ref(false)
@@ -41,11 +42,35 @@ function onFileChange(e: Event) {
     input.value = '' // reset for re-selection
   }
 }
+
+// Global Clipboard Paste (Ctrl+V) listener
+function onWindowPaste(e: ClipboardEvent) {
+  const items = e.clipboardData?.items
+  if (!items) return
+  const imageFiles: File[] = []
+  for (let i = 0; i < items.length; i++) {
+    if (items[i].type.startsWith('image/')) {
+      const file = items[i].getAsFile()
+      if (file) imageFiles.push(file)
+    }
+  }
+  if (imageFiles.length > 0) {
+    emit('files', imageFiles)
+  }
+}
+
+onMounted(() => {
+  window.addEventListener('paste', onWindowPaste)
+})
+
+onUnmounted(() => {
+  window.removeEventListener('paste', onWindowPaste)
+})
 </script>
 
 <template>
   <div
-    :class="['dropzone', { dragging: isDragging }]"
+    :class="['dropzone-container', { dragging: isDragging, compact: compact }]"
     @dragover="onDragOver"
     @dragleave="onDragLeave"
     @drop="onDrop"
@@ -60,72 +85,187 @@ function onFileChange(e: Event) {
       @change="onFileChange"
     />
 
-    <div class="dropzone-content">
-      <div class="dropzone-icon">
-        <svg width="40" height="40" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5">
-          <path d="M21 15v4a2 2 0 01-2 2H5a2 2 0 01-2-2v-4" />
-          <polyline points="17,8 12,3 7,8" />
-          <line x1="12" y1="3" x2="12" y2="15" />
-        </svg>
+    <div class="dropzone-inner">
+      <div class="icon-glow-wrap">
+        <div class="icon-circle">
+          <svg width="32" height="32" viewBox="0 0 24 24" fill="none" class="upload-svg">
+            <path
+              d="M7 16a4 4 0 01-.88-7.903A5 5 0 1115.9 6L16 6a5 5 0 011 9.9M15 13l-3-3m0 0l-3 3m3-3v12"
+              stroke="currentColor"
+              stroke-width="2"
+              stroke-linecap="round"
+              stroke-linejoin="round"
+            />
+          </svg>
+        </div>
       </div>
-      <p class="dropzone-text">Seret gambar ke sini, atau klik untuk pilih file</p>
-      <p class="dropzone-hint">JPG · PNG · WebP · AVIF</p>
+
+      <div class="text-group">
+        <h3 class="main-prompt">
+          Tarik & Lepas gambar di sini, atau <span class="accent-text">Pilih File</span>
+        </h3>
+        <p class="sub-prompt">
+          Bisa juga gunakan tangkapan layar dengan tekan <kbd>Ctrl + V</kbd>
+        </p>
+      </div>
+
+      <div class="badges-row">
+        <span class="badge">JPG</span>
+        <span class="badge">PNG</span>
+        <span class="badge">WEBP</span>
+        <span class="badge">AVIF</span>
+        <span class="badge-subtle">Maksimal 500 MB</span>
+      </div>
     </div>
   </div>
 </template>
 
 <style scoped>
-.dropzone {
-  border: 2px dashed var(--border);
-  border-radius: 12px;
-  padding: 40px 20px;
+.dropzone-container {
+  position: relative;
+  border: 2px dashed rgba(99, 102, 241, 0.25);
+  border-radius: 18px;
+  padding: 48px 24px;
   text-align: center;
   cursor: pointer;
-  transition: all 0.2s ease;
-  background: var(--bg-base);
+  background: rgba(19, 20, 30, 0.4);
+  backdrop-filter: blur(12px);
+  transition: all 0.25s cubic-bezier(0.16, 1, 0.3, 1);
+  overflow: hidden;
 }
 
-.dropzone:hover {
-  border-color: var(--accent);
-  background: color-mix(in srgb, var(--accent) 5%, var(--bg-base));
+.dropzone-container::before {
+  content: '';
+  position: absolute;
+  inset: 0;
+  background: radial-gradient(circle at 50% 50%, rgba(99, 102, 241, 0.06) 0%, transparent 70%);
+  pointer-events: none;
+  transition: opacity 0.3s ease;
+  opacity: 0.7;
 }
 
-.dropzone.dragging {
+.dropzone-container:hover {
   border-color: var(--accent);
-  background: color-mix(in srgb, var(--accent) 10%, var(--bg-base));
+  background: rgba(19, 20, 30, 0.7);
+  box-shadow: 0 8px 32px -4px rgba(99, 102, 241, 0.18);
+  transform: translateY(-2px);
+}
+
+.dropzone-container.dragging {
+  border-color: #8B5CF6;
+  background: rgba(99, 102, 241, 0.12);
+  box-shadow: 0 0 36px rgba(99, 102, 241, 0.3);
   transform: scale(1.01);
+}
+
+.dropzone-container.compact {
+  padding: 32px 16px;
 }
 
 .file-input {
   display: none;
 }
 
-.dropzone-content {
+.dropzone-inner {
+  position: relative;
+  z-index: 1;
   display: flex;
   flex-direction: column;
   align-items: center;
-  gap: 12px;
+  gap: 16px;
 }
 
-.dropzone-icon {
+.icon-glow-wrap {
+  position: relative;
+}
+
+.icon-circle {
+  width: 64px;
+  height: 64px;
+  border-radius: 20px;
+  background: rgba(99, 102, 241, 0.12);
+  border: 1px solid rgba(99, 102, 241, 0.25);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  color: #818CF8;
+  transition: all 0.25s ease;
+  box-shadow: 0 4px 16px rgba(0, 0, 0, 0.3);
+}
+
+.dropzone-container:hover .icon-circle,
+.dropzone-container.dragging .icon-circle {
+  background: var(--accent);
+  color: #FFFFFF;
+  box-shadow: 0 6px 24px rgba(99, 102, 241, 0.5);
+  transform: scale(1.06);
+}
+
+.upload-svg {
+  transition: transform 0.25s ease;
+}
+
+.dropzone-container:hover .upload-svg {
+  transform: translateY(-2px);
+}
+
+.text-group {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+
+.main-prompt {
+  font-family: var(--font-heading);
+  font-size: 16px;
+  font-weight: 600;
+  color: var(--text-primary);
+  letter-spacing: -0.2px;
+}
+
+.accent-text {
+  color: #818CF8;
+  text-decoration: underline;
+  text-underline-offset: 3px;
+}
+
+.sub-prompt {
+  font-size: 13px;
   color: var(--text-secondary);
-  opacity: 0.5;
 }
 
-.dropzone.dragging .dropzone-icon,
-.dropzone:hover .dropzone-icon {
-  color: var(--accent);
-  opacity: 1;
+kbd {
+  font-family: monospace;
+  background: rgba(255, 255, 255, 0.08);
+  border: 1px solid rgba(255, 255, 255, 0.15);
+  border-radius: 5px;
+  padding: 2px 6px;
+  font-size: 11px;
+  color: #E0E7FF;
 }
 
-.dropzone-text {
-  color: var(--text-secondary);
-  font-size: 14px;
+.badges-row {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  flex-wrap: wrap;
+  justify-content: center;
+  margin-top: 4px;
 }
 
-.dropzone-hint {
-  color: var(--text-secondary);
-  font-size: 12px;
-  opacity: 0.6;
+.badge {
+  font-size: 11px;
+  font-weight: 600;
+  padding: 3px 8px;
+  border-radius: 6px;
+  background: rgba(255, 255, 255, 0.05);
+  border: 1px solid rgba(255, 255, 255, 0.08);
+  color: var(--text-muted);
+}
+
+.badge-subtle {
+  font-size: 11px;
+  color: var(--text-muted);
+  margin-left: 4px;
 }
 </style>

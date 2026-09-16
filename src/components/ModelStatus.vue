@@ -68,63 +68,98 @@ onMounted(fetchStatus)
 </script>
 
 <template>
-  <div class="model-status">
-    <div v-if="status && status.ready" class="status-banner ready">
-      <span class="status-icon">✅</span>
-      <span>Semua model siap digunakan</span>
+  <div class="model-status-wrapper">
+    <!-- Status Banner -->
+    <div v-if="status && status.ready" class="status-banner ready glass-panel">
+      <div class="banner-icon-box success">
+        <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5">
+          <polyline points="20 6 9 17 4 12" />
+        </svg>
+      </div>
+      <div class="banner-text-group">
+        <span class="banner-title">Seluruh Model Siap Digunakan</span>
+        <span class="banner-desc">Detektor balon manga, OCR, dan Inpainting telah terpasang di disk lokal.</span>
+      </div>
     </div>
 
-    <div v-else-if="status && !status.ready" class="status-banner not-ready">
-      <span class="status-icon">⚠️</span>
-      <span>Beberapa model perlu diunduh</span>
+    <div v-else-if="status && !status.ready" class="status-banner not-ready glass-panel">
+      <div class="banner-icon-box warning">
+        <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+          <path d="M10.29 3.86L1.82 18a2 2 0 001.71 3h16.94a2 2 0 001.71-3L13.71 3.86a2 2 0 00-3.42 0z"/>
+          <line x1="12" y1="9" x2="12" y2="13"/>
+          <line x1="12" y1="17" x2="12.01" y2="17"/>
+        </svg>
+      </div>
+      <div class="banner-text-group">
+        <span class="banner-title">Beberapa Model Belum Terunduh</span>
+        <span class="banner-desc">Unduh model offline untuk menjalankan pipeline deteksi dan inpainting secara optimal.</span>
+      </div>
       <button
         v-if="!downloading"
-        class="btn-download"
+        class="btn btn-primary btn-sm btn-download-all"
         @click="startDownload"
       >
-        Unduh Semua
+        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+          <path d="M21 15v4a2 2 0 01-2 2H5a2 2 0 01-2-2v-4" />
+          <polyline points="7 10 12 15 17 10" />
+          <line x1="12" y1="15" x2="12" y2="3" />
+        </svg>
+        Unduh Semua Model
       </button>
     </div>
 
     <!-- Download progress -->
-    <div v-if="downloading && downloadProgress" class="download-progress">
-      <p class="progress-label">
-        Mengunduh: <strong>{{ downloadProgress.current_model }}</strong>
-      </p>
-      <div class="progress-bar">
+    <div v-if="downloading && downloadProgress" class="download-progress-card glass-panel">
+      <div class="progress-meta">
+        <span class="progress-label">
+          Mengunduh model: <strong>{{ downloadProgress.current_model }}</strong>
+        </span>
+        <span class="progress-pct">
+          {{ formatProgress(downloadProgress.progress, downloadProgress.total) }}
+        </span>
+      </div>
+      <div class="progress-track">
         <div
           class="progress-fill"
           :style="{ width: formatProgress(downloadProgress.progress, downloadProgress.total) }"
         ></div>
       </div>
-      <p class="progress-pct">
-        {{ formatProgress(downloadProgress.progress, downloadProgress.total) }}
-      </p>
     </div>
 
-    <!-- Model list -->
-    <div v-if="status" class="model-list">
+    <!-- Model List -->
+    <div v-if="status" class="model-cards-list">
       <div
         v-for="model in status.models"
         :key="model.name"
-        class="model-card"
+        class="model-item-card glass-panel"
       >
         <div class="model-info">
-          <span class="model-name">{{ model.name }}</span>
-          <span class="model-size">{{ formatSize(model.size_mb) }}</span>
+          <div class="model-icon-badge">
+            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+              <polygon points="12 2 2 7 12 12 22 7 12 2"/>
+              <polyline points="2 17 12 22 22 17"/>
+              <polyline points="2 12 12 17 22 12"/>
+            </svg>
+          </div>
+          <div class="model-names">
+            <span class="model-name">{{ model.name }}</span>
+            <span class="model-size-badge">{{ formatSize(model.size_mb) }}</span>
+          </div>
         </div>
-        <span :class="['model-badge', model.downloaded ? 'downloaded' : 'missing']">
-          {{ model.downloaded ? 'Terunduh' : 'Belum ada' }}
+
+        <span :class="['model-status-chip', model.downloaded ? 'chip-downloaded' : 'chip-missing']">
+          <span class="status-dot"></span>
+          {{ model.downloaded ? 'Tersedia di Disk' : 'Belum Ada' }}
         </span>
       </div>
     </div>
 
-    <p v-if="error" class="error-text">{{ error }}</p>
+    <p v-if="error" class="error-msg-text">{{ error }}</p>
   </div>
 </template>
 
 <style scoped>
-.model-status {
+.model-status-wrapper {
   display: flex;
   flex-direction: column;
   gap: 16px;
@@ -133,87 +168,118 @@ onMounted(fetchStatus)
 .status-banner {
   display: flex;
   align-items: center;
-  gap: 10px;
-  padding: 12px 16px;
+  gap: 14px;
+  padding: 16px 20px;
+  border-radius: 12px;
+  flex-wrap: wrap;
+}
+
+.banner-icon-box {
+  width: 36px;
+  height: 36px;
   border-radius: 10px;
-  font-size: 14px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  flex-shrink: 0;
 }
 
-.status-banner.ready {
-  background: color-mix(in srgb, var(--success) 10%, transparent);
-  border: 1px solid color-mix(in srgb, var(--success) 30%, transparent);
-  color: var(--success);
+.banner-icon-box.success {
+  background: rgba(16, 185, 129, 0.15);
+  color: #34D399;
 }
 
-.status-banner.not-ready {
-  background: color-mix(in srgb, var(--warning) 10%, transparent);
-  border: 1px solid color-mix(in srgb, var(--warning) 30%, transparent);
-  color: var(--warning);
+.banner-icon-box.warning {
+  background: rgba(245, 158, 11, 0.15);
+  color: #FBBF24;
 }
 
-.btn-download {
+.banner-text-group {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  flex: 1;
+  min-width: 200px;
+}
+
+.banner-title {
+  font-family: var(--font-heading);
+  font-size: 14.5px;
+  font-weight: 700;
+  color: #FFFFFF;
+}
+
+.banner-desc {
+  font-size: 12.5px;
+  color: var(--text-secondary);
+}
+
+.btn-download-all {
   margin-left: auto;
-  padding: 6px 14px;
-  background: var(--accent);
-  color: #fff;
-  border: none;
-  border-radius: 7px;
-  font-size: 13px;
-  font-weight: 500;
-  cursor: pointer;
-  transition: opacity 0.15s;
 }
 
-.btn-download:hover {
-  opacity: 0.85;
+.download-progress-card {
+  padding: 16px 20px;
+  border-radius: 12px;
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
 }
 
-.download-progress {
-  padding: 12px 16px;
-  background: var(--bg-elevated);
-  border-radius: 10px;
+.progress-meta {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
 }
 
 .progress-label {
   font-size: 13px;
   color: var(--text-secondary);
-  margin-bottom: 8px;
 }
 
-.progress-bar {
-  height: 6px;
-  background: var(--border);
-  border-radius: 3px;
+.progress-label strong {
+  color: #FFFFFF;
+}
+
+.progress-pct {
+  font-family: monospace;
+  font-size: 13px;
+  font-weight: 700;
+  color: #818CF8;
+}
+
+.progress-track {
+  height: 8px;
+  background: rgba(255, 255, 255, 0.06);
+  border-radius: 4px;
   overflow: hidden;
 }
 
 .progress-fill {
   height: 100%;
-  background: var(--accent);
-  border-radius: 3px;
+  background: var(--accent-gradient);
+  box-shadow: 0 0 14px rgba(99, 102, 241, 0.6);
+  border-radius: 4px;
   transition: width 0.3s ease;
 }
 
-.progress-pct {
-  font-size: 12px;
-  color: var(--text-secondary);
-  margin-top: 6px;
-  text-align: right;
-}
-
-.model-list {
+.model-cards-list {
   display: flex;
   flex-direction: column;
-  gap: 6px;
+  gap: 8px;
 }
 
-.model-card {
+.model-item-card {
   display: flex;
   align-items: center;
   justify-content: space-between;
-  padding: 10px 14px;
-  background: var(--bg-elevated);
-  border-radius: 8px;
+  padding: 12px 18px;
+  border-radius: 10px;
+  transition: background 0.15s ease;
+}
+
+.model-item-card:hover {
+  background: rgba(255, 255, 255, 0.03);
 }
 
 .model-info {
@@ -222,35 +288,71 @@ onMounted(fetchStatus)
   gap: 12px;
 }
 
+.model-icon-badge {
+  width: 32px;
+  height: 32px;
+  border-radius: 8px;
+  background: rgba(99, 102, 241, 0.1);
+  color: #818CF8;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.model-names {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
 .model-name {
-  font-size: 13px;
-  font-weight: 500;
+  font-size: 13.5px;
+  font-weight: 600;
   color: var(--text-primary);
 }
 
-.model-size {
-  font-size: 12px;
-  color: var(--text-secondary);
+.model-size-badge {
+  font-size: 11px;
+  font-family: monospace;
+  padding: 2px 6px;
+  border-radius: 4px;
+  background: rgba(255, 255, 255, 0.05);
+  color: var(--text-muted);
 }
 
-.model-badge {
-  font-size: 12px;
-  padding: 3px 8px;
+.model-status-chip {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 4px 10px;
   border-radius: 6px;
-  font-weight: 500;
+  font-size: 12px;
+  font-weight: 600;
 }
 
-.model-badge.downloaded {
-  background: color-mix(in srgb, var(--success) 15%, transparent);
-  color: var(--success);
+.status-dot {
+  width: 6px;
+  height: 6px;
+  border-radius: 50%;
 }
 
-.model-badge.missing {
-  background: color-mix(in srgb, var(--error) 15%, transparent);
-  color: var(--error);
+.chip-downloaded {
+  background: rgba(16, 185, 129, 0.12);
+  color: #34D399;
+}
+.chip-downloaded .status-dot {
+  background: #10B981;
 }
 
-.error-text {
+.chip-missing {
+  background: rgba(244, 63, 94, 0.12);
+  color: #FB7185;
+}
+.chip-missing .status-dot {
+  background: #F43F5E;
+}
+
+.error-msg-text {
   color: var(--error);
   font-size: 13px;
 }

@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { ref, onMounted, onUnmounted } from 'vue'
+import { ref, onMounted } from 'vue'
 
 defineProps<{
   beforeSrc: string
@@ -37,79 +37,96 @@ function onPointerUp() {
 <template>
   <div
     ref="container"
-    class="image-viewer"
+    class="image-viewer-container"
     @pointerdown="onPointerDown"
     @pointermove="onPointerMove"
     @pointerup="onPointerUp"
     @pointercancel="onPointerUp"
   >
-    <!-- After image (full width, behind) -->
-    <img :src="afterSrc" class="viewer-img after-img" alt="Translated" draggable="false" />
+    <!-- Translated Result (Base) -->
+    <img :src="afterSrc" class="viewer-img after-img" alt="Translated Result" draggable="false" />
 
-    <!-- Before image (clipped by slider) -->
+    <!-- Original (Clipped on top) -->
     <div class="before-clip" :style="{ width: sliderPosition + '%' }">
       <img :src="beforeSrc" class="viewer-img before-img" alt="Original" draggable="false" />
     </div>
 
-    <!-- Slider line -->
+    <!-- Slider Divider Line & Handle -->
     <div class="slider-line" :style="{ left: sliderPosition + '%' }">
       <div class="slider-handle">
-        <svg width="16" height="16" viewBox="0 0 24 24" fill="currentColor">
-          <path d="M8 5l-5 7 5 7V5zm8 0v14l5-7-5-7z" />
+        <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
+          <polyline points="15 18 9 12 15 6" />
+        </svg>
+        <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
+          <polyline points="9 18 15 12 9 6" />
         </svg>
       </div>
     </div>
 
-    <!-- Labels -->
-    <span class="viewer-label label-before">Asli</span>
-    <span class="viewer-label label-after">Hasil</span>
+    <!-- Frosted Badges -->
+    <div class="viewer-label label-before">
+      <span class="label-dot dot-original"></span>
+      <span>Asli</span>
+    </div>
+    <div class="viewer-label label-after">
+      <span class="label-dot dot-result"></span>
+      <span>Hasil AI</span>
+    </div>
   </div>
 </template>
 
 <style scoped>
-.image-viewer {
+.image-viewer-container {
   position: relative;
   width: 100%;
+  max-height: 75vh;
+  min-height: 380px;
   overflow: hidden;
-  border-radius: 10px;
+  border-radius: 16px;
   cursor: col-resize;
   user-select: none;
   touch-action: none;
-  background: var(--bg-base);
-  aspect-ratio: auto;
+  background: #08090E;
+  border: 1px solid var(--border);
+  box-shadow: 0 16px 40px -8px rgba(0, 0, 0, 0.6);
+  display: flex;
+  align-items: center;
+  justify-content: center;
 }
 
 .viewer-img {
   display: block;
   width: 100%;
-  height: 100%;
+  max-height: 75vh;
   object-fit: contain;
   pointer-events: none;
 }
 
 .after-img {
   position: relative;
+  z-index: 1;
 }
 
 .before-clip {
   position: absolute;
   top: 0;
   left: 0;
-  height: 100%;
+  bottom: 0;
   overflow: hidden;
+  z-index: 2;
+  display: flex;
+  align-items: center;
 }
 
 .before-img {
   position: absolute;
   top: 0;
   left: 0;
-  width: auto;
-  min-width: 0;
-}
-
-/* Make before image match container width regardless of clip */
-.before-clip .before-img {
-  width: var(--container-width, 100%);
+  bottom: 0;
+  width: 100%;
+  max-height: 75vh;
+  object-fit: contain;
+  min-width: 100%;
 }
 
 .slider-line {
@@ -117,9 +134,10 @@ function onPointerUp() {
   top: 0;
   bottom: 0;
   width: 2px;
-  background: white;
+  background: rgba(255, 255, 255, 0.9);
+  box-shadow: 0 0 12px rgba(99, 102, 241, 0.8);
   transform: translateX(-50%);
-  z-index: 2;
+  z-index: 10;
   pointer-events: none;
 }
 
@@ -128,38 +146,67 @@ function onPointerUp() {
   top: 50%;
   left: 50%;
   transform: translate(-50%, -50%);
-  width: 36px;
-  height: 36px;
-  background: white;
+  width: 44px;
+  height: 44px;
+  background: #1E1B4B;
+  border: 2px solid #818CF8;
   border-radius: 50%;
   display: flex;
   align-items: center;
   justify-content: center;
-  color: var(--bg-base);
-  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.4);
+  color: #FFFFFF;
+  box-shadow: 0 0 20px rgba(99, 102, 241, 0.6), 0 4px 12px rgba(0, 0, 0, 0.5);
   pointer-events: auto;
   cursor: col-resize;
+  transition: transform 0.15s ease, box-shadow 0.15s ease;
+}
+
+.image-viewer-container:hover .slider-handle {
+  transform: translate(-50%, -50%) scale(1.08);
+  box-shadow: 0 0 28px rgba(99, 102, 241, 0.8), 0 6px 16px rgba(0, 0, 0, 0.6);
 }
 
 .viewer-label {
   position: absolute;
-  top: 12px;
-  padding: 4px 10px;
-  background: rgba(0, 0, 0, 0.6);
-  backdrop-filter: blur(4px);
-  color: white;
+  top: 16px;
+  padding: 6px 12px;
+  background: rgba(15, 16, 24, 0.75);
+  backdrop-filter: blur(12px);
+  border: 1px solid rgba(255, 255, 255, 0.1);
+  color: #FFFFFF;
+  font-family: var(--font-heading);
   font-size: 12px;
-  font-weight: 500;
-  border-radius: 6px;
+  font-weight: 600;
+  border-radius: 8px;
   pointer-events: none;
-  z-index: 3;
+  z-index: 12;
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.3);
+}
+
+.label-dot {
+  width: 6px;
+  height: 6px;
+  border-radius: 50%;
+}
+
+.dot-original {
+  background: #F59E0B;
+  box-shadow: 0 0 6px #F59E0B;
+}
+
+.dot-result {
+  background: #10B981;
+  box-shadow: 0 0 6px #10B981;
 }
 
 .label-before {
-  left: 12px;
+  left: 16px;
 }
 
 .label-after {
-  right: 12px;
+  right: 16px;
 }
 </style>
