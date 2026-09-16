@@ -1,0 +1,14 @@
+# GPU (CUDA 12.1) requirements
+# Install these INSTEAD of the default torch/torchvision:
+#   pip install -r requirements-gpu.txt
+
+manga-image-translator
+torch --index-url https://download.pytorch.org/whl/cu121
+torchvision --index-url https://download.pytorch.org/whl/cu121
+opencv-python
+Pillow
+httpx
+cryptography
+fastapi
+uvicorn[standard]
+python-multipart

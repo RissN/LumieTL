@@ -1,16 +1,10 @@
-# Core & AI
-manga-image-translator @ git+https://github.com/zyddnys/manga-image-translator.git
-onnxruntime
+manga-image-translator
+torch
+torchvision
 opencv-python
 Pillow
 httpx
 cryptography
-
-# Web Backend (FastAPI Monolith)
 fastapi
 uvicorn[standard]
 python-multipart
-
-# Testing
-pytest
-pytest-asyncio

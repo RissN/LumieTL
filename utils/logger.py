@@ -1,54 +1,51 @@
-"""Application logging configuration with rotating file handler."""
+"""Logging setup and structured audit function."""
 
 import logging
-from logging.handlers import RotatingFileHandler
 from pathlib import Path
-from core.config import LOG_FILE, APP_DATA_DIR
 
-_logger: logging.Logger | None = None
+from core.config import LOG_FILE
 
 
-def setup_logger(name: str = "LumieTL", level: int = logging.INFO) -> logging.Logger:
-    """Set up and configure the application logger."""
-    global _logger
-    if _logger is not None:
-        return _logger
+def _setup() -> logging.Logger:
+    """Create and configure the application logger."""
+    LOG_FILE.parent.mkdir(parents=True, exist_ok=True)
 
-    APP_DATA_DIR.mkdir(parents=True, exist_ok=True)
+    app_logger = logging.getLogger("lumietl")
+    app_logger.setLevel(logging.INFO)
 
-    logger = logging.getLogger(name)
-    logger.setLevel(level)
-
-    # Avoid duplicate handlers if re-called
-    if not logger.handlers:
-        formatter = logging.Formatter(
-            fmt="%(asctime)s [%(levelname)s] [%(name)s] %(message)s",
-            datefmt="%Y-%m-%d %H:%M:%S",
+    # Avoid duplicate handlers on reload
+    if not app_logger.handlers:
+        file_handler = logging.FileHandler(str(LOG_FILE), encoding="utf-8")
+        file_handler.setFormatter(
+            logging.Formatter(
+                "%(asctime)s | %(levelname)-8s | %(message)s",
+                datefmt="%Y-%m-%d %H:%M:%S",
+            )
         )
+        app_logger.addHandler(file_handler)
 
-        # Rotating file handler (max 10 MB per file, keep 3 backups)
-        file_handler = RotatingFileHandler(
-            LOG_FILE,
-            maxBytes=10 * 1024 * 1024,
-            backupCount=3,
-            encoding="utf-8",
-        )
-        file_handler.setFormatter(formatter)
-        file_handler.setLevel(level)
-        logger.addHandler(file_handler)
-
-        # Console handler
         console_handler = logging.StreamHandler()
-        console_handler.setFormatter(formatter)
-        console_handler.setLevel(level)
-        logger.addHandler(console_handler)
+        console_handler.setFormatter(
+            logging.Formatter(
+                "%(asctime)s | %(levelname)-8s | %(message)s",
+                datefmt="%H:%M:%S",
+            )
+        )
+        app_logger.addHandler(console_handler)
 
-    _logger = logger
-    return logger
+    return app_logger
 
 
-def get_logger() -> logging.Logger:
-    """Retrieve the shared application logger instance."""
-    if _logger is None:
-        return setup_logger()
-    return _logger
+logger: logging.Logger = _setup()
+
+
+def audit(action: str, detail: str = "") -> None:
+    """Write a structured audit log entry.
+
+    Usage::
+
+        audit("translate_start", "engine=google source=JPN file=ch01.jpg")
+        audit("translate_done", "duration=2.3s")
+        audit("api_key_saved", "provider=deepl")
+    """
+    logger.info("AUDIT | %s | %s", action, detail)

@@ -1,35 +1,19 @@
-"""Translation pipeline wrapper integrating manga-image-translator with LumieTL engines."""
+"""Wrapper around manga-image-translator for image translation.
 
-import time
+This module provides a clean async interface that the API layer calls.
+It handles engine validation, rate limiting, cancellation, and
+delegates actual translation to the manga-image-translator library.
+"""
+
 from pathlib import Path
 from typing import Callable
+
 from core.config import MODEL_DIR
-from core.exceptions import (
-    FileValidationError,
-    ModelNotFoundError,
-    TranslationError,
-    UnsupportedEngineError,
-)
-from core.model_manager import models_ready
+from core.exceptions import TranslationError, UnsupportedEngineError
 from core.rate_limiter import RATE_LIMITERS
-from utils.file_utils import validate_image_file
-from utils.logger import get_logger
+from utils.logger import audit
 
-logger = get_logger()
-SUPPORTED_ENGINES = {"google", "deepl", "openai"}
-
-
-def check_prerequisites(input_path: Path, model_dir: Path | None = None) -> None:
-    """Validate input file and model readiness before executing translation."""
-    is_valid, reason = validate_image_file(input_path)
-    if not is_valid:
-        raise FileValidationError(f"Invalid input image: {reason}")
-
-    target_models = model_dir or MODEL_DIR
-    if not models_ready(target_models):
-        raise ModelNotFoundError(
-            "Model ONNX belum lengkap. Silakan unduh model terlebih dahulu melalui Model Setup."
-        )
+SUPPORTED_ENGINES: set[str] = {"google", "deepl", "openai"}
 
 
 async def translate_image(
@@ -38,93 +22,86 @@ async def translate_image(
     target_lang: str,
     engine: str,
     output_path: Path,
-    model_dir: Path | None = None,
     api_key: str | None = None,
-    progress_callback: Callable[[int, int, str], None] | None = None,
     cancel_check: Callable[[], bool] | None = None,
-) -> tuple[Path, float]:
-    """
-    Execute translation pipeline on a single image.
-    Returns tuple of (output_path, duration_seconds).
-    """
-    start_time = time.time()
-    engine_key = engine.lower()
+) -> Path:
+    """Translate text in an image file and write the result to *output_path*.
 
-    if engine_key not in SUPPORTED_ENGINES:
+    Parameters
+    ----------
+    input_path:
+        Path to the source image.
+    source_lang:
+        Source language code (e.g. ``"JPN"``, ``"auto"``).
+    target_lang:
+        Target language code (e.g. ``"ID"``, ``"EN"``).
+    engine:
+        Translation engine identifier (``"google"``, ``"deepl"``, ``"openai"``).
+    output_path:
+        Where to write the translated image.
+    api_key:
+        API key for engines that require one (DeepL, OpenAI).
+    cancel_check:
+        Optional callable; if it returns ``True`` the translation is aborted.
+
+    Returns
+    -------
+    Path
+        The *output_path* after successful translation.
+    """
+    if engine not in SUPPORTED_ENGINES:
         raise UnsupportedEngineError(f"Engine '{engine}' is not supported")
 
-    if cancel_check and cancel_check():
-        raise TranslationError("Translation cancelled by user")
-
-    if progress_callback:
-        progress_callback(10, 100, "Memvalidasi input...")
-
-    models_path = model_dir or MODEL_DIR
-    check_prerequisites(input_path, models_path)
-
-    if progress_callback:
-        progress_callback(20, 100, f"Menunggu kuota engine {engine}...")
-
-    # Rate limiting
-    RATE_LIMITERS[engine_key].wait_if_needed()
+    # Apply per-engine rate limiting (blocks if limit reached)
+    RATE_LIMITERS[engine].wait_if_needed()
 
     if cancel_check and cancel_check():
-        raise TranslationError("Translation cancelled by user")
+        raise TranslationError("Cancelled by user")
 
-    if progress_callback:
-        progress_callback(35, 100, "Menjalankan deteksi teks dan OCR...")
-
-    # Ensure output directory exists
-    output_path.parent.mkdir(parents=True, exist_ok=True)
+    audit(
+        "translate_start",
+        f"engine={engine} source={source_lang} target={target_lang} "
+        f"file={input_path.name}",
+    )
 
     try:
-        # Dynamically import manga_translator to keep startup swift
-        from manga_translator import Config, MangaTranslator
+        # Import here to defer heavy dependency loading
+        from manga_translator import MangaTranslator
 
-        config_kwargs = {
-            "translator": engine_key,
+        # Build translator arguments
+        translator_params = {
             "target_lang": target_lang,
-            "source_lang": source_lang,
+            "translator": engine,
             "detector": "default",
             "ocr": "48px",
             "inpainter": "lama_mpe",
-            "upscaler": "none",
-            "model_dir": str(models_path),
+            "direction": "auto",
         }
 
-        # Inject provider-specific API keys if provided
-        if engine_key == "deepl" and api_key:
-            config_kwargs["deepl_api_key"] = api_key
-        elif engine_key == "openai" and api_key:
-            config_kwargs["openai_api_key"] = api_key
+        if source_lang and source_lang != "auto":
+            translator_params["source_lang"] = source_lang
 
-        if progress_callback:
-            progress_callback(55, 100, "Menerjemahkan teks dan inpainting...")
+        if api_key:
+            translator_params["translator_api_key"] = api_key
 
-        config = Config(**config_kwargs)
-        mt = MangaTranslator(config)
+        mt = MangaTranslator(translator_params)
+        output_path.parent.mkdir(parents=True, exist_ok=True)
+        await mt.translate_path(str(input_path), str(output_path))
 
-        if cancel_check and cancel_check():
-            raise TranslationError("Translation cancelled by user")
-
-        await mt.translate_file(str(input_path), str(output_path))
-
-        if progress_callback:
-            progress_callback(100, 100, "Selesai")
-
-        duration = time.time() - start_time
-        logger.info(
-            "Successfully translated %s -> %s using %s in %.2fs",
-            input_path.name,
-            output_path.name,
-            engine_key,
-            duration,
+    except ImportError:
+        raise TranslationError(
+            "manga-image-translator is not installed. "
+            "Run: pip install manga-image-translator"
         )
-        return output_path, duration
-
+    except TranslationError:
+        raise
     except Exception as e:
-        duration = time.time() - start_time
-        logger.error("Translation failed for %s: %s", input_path.name, e)
-        if isinstance(e, (FileValidationError, ModelNotFoundError, UnsupportedEngineError, TranslationError)):
-            raise
         raise TranslationError(f"Translation failed: {e}") from e
+
+    if not output_path.exists():
+        raise TranslationError(
+            "Translation produced no output file — the pipeline may have "
+            "failed silently."
+        )
+
+    return output_path

@@ -1,4 +1,4 @@
-"""LumieTL Custom Exceptions."""
+"""Custom exception classes for LumieTL."""
 
 
 class LumieTLError(Exception):
@@ -6,15 +6,15 @@ class LumieTLError(Exception):
 
 
 class TranslationError(LumieTLError):
-    """Raised when an error occurs during the translation pipeline."""
+    """Raised when image translation fails."""
 
 
 class ModelNotFoundError(LumieTLError):
-    """Raised when required ONNX models are missing."""
+    """Raised when a required model file is missing."""
 
 
 class ModelIntegrityError(LumieTLError):
-    """Raised when downloaded model checksum does not match expected value."""
+    """Raised when a model file fails SHA256 verification."""
 
 
 class UnsupportedEngineError(LumieTLError):
@@ -22,12 +22,8 @@ class UnsupportedEngineError(LumieTLError):
 
 
 class FileValidationError(LumieTLError):
-    """Raised when an input image file fails security or format validation."""
+    """Raised when an uploaded file fails validation."""
 
 
 class RateLimitError(LumieTLError):
-    """Raised when rate limits are exceeded."""
-
-
-class SecurityError(LumieTLError):
-    """Raised on security violation (path traversal, corrupted secret, etc.)."""
+    """Raised when a rate limit is exceeded."""

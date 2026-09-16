@@ -1,0 +1,94 @@
+@import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;450;500;600;700&display=swap');
+@import "tailwindcss";
+
+/* ── LumieTL Design Tokens ─────────────────────────────────────── */
+
+@theme {
+  --color-bg-base: #0F0F11;
+  --color-bg-surface: #18181C;
+  --color-bg-elevated: #222228;
+  --color-border: #2A2A30;
+  --color-text-primary: #E8E8ED;
+  --color-text-secondary: #8A8A96;
+  --color-accent: #6C8EF5;
+  --color-success: #4CAF82;
+  --color-error: #E05C5C;
+  --color-warning: #D4A847;
+}
+
+/* ── CSS Custom Properties (used by components) ───────────────── */
+
+:root {
+  --bg-base:       #0F0F11;
+  --bg-surface:    #18181C;
+  --bg-elevated:   #222228;
+  --border:        #2A2A30;
+  --text-primary:  #E8E8ED;
+  --text-secondary:#8A8A96;
+  --accent:        #6C8EF5;
+  --success:       #4CAF82;
+  --error:         #E05C5C;
+  --warning:       #D4A847;
+}
+
+/* ── Base Reset & Typography ──────────────────────────────────── */
+
+*,
+*::before,
+*::after {
+  box-sizing: border-box;
+  margin: 0;
+  padding: 0;
+}
+
+html {
+  font-size: 14px;
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+}
+
+body {
+  font-family: 'Inter', system-ui, -apple-system, sans-serif;
+  background: var(--bg-base);
+  color: var(--text-primary);
+  line-height: 1.5;
+  overflow: hidden;
+}
+
+#app {
+  min-height: 100vh;
+}
+
+/* ── Scrollbar ────────────────────────────────────────────────── */
+
+::-webkit-scrollbar {
+  width: 6px;
+  height: 6px;
+}
+
+::-webkit-scrollbar-track {
+  background: transparent;
+}
+
+::-webkit-scrollbar-thumb {
+  background: var(--border);
+  border-radius: 3px;
+}
+
+::-webkit-scrollbar-thumb:hover {
+  background: var(--text-secondary);
+}
+
+/* ── Selection ────────────────────────────────────────────────── */
+
+::selection {
+  background: color-mix(in srgb, var(--accent) 40%, transparent);
+  color: white;
+}
+
+/* ── Focus Visible ────────────────────────────────────────────── */
+
+:focus-visible {
+  outline: 2px solid var(--accent);
+  outline-offset: 2px;
+}

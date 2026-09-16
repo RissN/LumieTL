@@ -1,36 +1,41 @@
-"""Application configuration and constants."""
+"""Application constants, paths, and configuration values."""
 
 import os
 import sys
 from pathlib import Path
 
-BASE_DIR = Path(__file__).resolve().parent.parent
-
-# User persistent data directory
+# ---------------------------------------------------------------------------
+# Data directories — persist between restarts
+# ---------------------------------------------------------------------------
 if sys.platform == "win32":
-    APP_DATA_DIR = Path(os.environ.get("APPDATA", Path.home())) / "LumieTL"
+    _base = Path(os.environ.get("APPDATA", Path.home()))
 else:
-    APP_DATA_DIR = Path.home() / ".lumietl"
+    _base = Path.home()
 
-MODEL_DIR = APP_DATA_DIR / "models"
-HISTORY_DB = APP_DATA_DIR / "history.db"
-SETTINGS_FILE = APP_DATA_DIR / "settings.enc"
-KEYS_FILE = APP_DATA_DIR / "keys.enc"
-LOG_FILE = APP_DATA_DIR / "app.log"
-OUTPUT_DIR = APP_DATA_DIR / "output"
+APP_DATA_DIR: Path = _base / "LumieTL"
+MODEL_DIR: Path = APP_DATA_DIR / "models"
+HISTORY_DB: Path = APP_DATA_DIR / "history.db"
+SETTINGS_FILE: Path = APP_DATA_DIR / "settings.enc"
+KEYS_FILE: Path = APP_DATA_DIR / "keys.enc"
+LOG_FILE: Path = APP_DATA_DIR / "app.log"
+OUTPUT_DIR: Path = APP_DATA_DIR / "output"
 
-# Application metadata
-APP_NAME = "LumieTL"
-APP_VERSION = "1.0.0"
+# ---------------------------------------------------------------------------
+# App metadata
+# ---------------------------------------------------------------------------
+APP_NAME: str = "LumieTL"
+APP_VERSION: str = "1.0.0"
 
-# File & processing constraints
-MAX_FILE_SIZE_MB = 50
-MAX_FILE_SIZE_BYTES = MAX_FILE_SIZE_MB * 1024 * 1024
-MAX_IMAGE_DIMENSION = 8192
-MAX_IMAGE_PIXELS = 67_108_864  # 64 MegaPixels safety threshold against decompression bombs
-ALLOWED_EXTENSIONS = {".jpg", ".jpeg", ".png", ".webp", ".avif"}
+# ---------------------------------------------------------------------------
+# File constraints
+# ---------------------------------------------------------------------------
+MAX_FILE_SIZE_MB: int = 500
+MAX_FILE_SIZE_BYTES: int = MAX_FILE_SIZE_MB * 1024 * 1024
+ALLOWED_EXTENSIONS: set[str] = {".jpg", ".jpeg", ".png", ".webp", ".avif"}
 
+# ---------------------------------------------------------------------------
 # Supported languages
+# ---------------------------------------------------------------------------
 SOURCE_LANGS: dict[str, str] = {
     "auto": "Auto-detect",
     "JPN": "Jepang",
@@ -46,36 +51,33 @@ TARGET_LANGS: dict[str, str] = {
     "TH": "Thailand",
 }
 
+# ---------------------------------------------------------------------------
 # Translation engines
+# ---------------------------------------------------------------------------
 TRANSLATOR_ENGINES: dict[str, str] = {
     "google": "Google Translate",
     "deepl": "DeepL",
     "openai": "OpenAI GPT-4o",
 }
 
-# Default UI color tokens
-COLORS = {
-    "bg_base": "#0F0F11",
-    "bg_surface": "#18181C",
-    "bg_elevated": "#222228",
-    "border": "#2A2A30",
-    "text_primary": "#E8E8ED",
-    "text_secondary": "#8A8A96",
-    "accent": "#6C8EF5",
-    "success": "#4CAF82",
-    "error": "#E05C5C",
-    "warning": "#D4A847",
+# Engine-specific rate limits (requests per window)
+ENGINE_RATE_LIMITS: dict[str, dict[str, int]] = {
+    "google": {"max_requests": 30, "window_seconds": 60},
+    "deepl": {"max_requests": 50, "window_seconds": 60},
+    "openai": {"max_requests": 20, "window_seconds": 60},
 }
 
-# Web server settings
-WEB_PORT = int(os.environ.get("LUMIETL_PORT", 18420))
-WEB_HOST = os.environ.get("LUMIETL_HOST", "127.0.0.1")
-WEB_AUTH_ENABLED = os.environ.get("LUMIETL_AUTH_ENABLED", "false").lower() == "true"
-WEB_AUTH_USER = os.environ.get("LUMIETL_AUTH_USER", "admin")
-WEB_AUTH_PASS = os.environ.get("LUMIETL_AUTH_PASS", "")
+# ---------------------------------------------------------------------------
+# Web server configuration (via environment variables)
+# ---------------------------------------------------------------------------
+WEB_PORT: int = int(os.environ.get("LUMIETL_PORT", "18420"))
+WEB_AUTH_ENABLED: bool = (
+    os.environ.get("LUMIETL_AUTH_ENABLED", "false").lower() == "true"
+)
+WEB_AUTH_USER: str = os.environ.get("LUMIETL_AUTH_USER", "admin")
+WEB_AUTH_PASS: str = os.environ.get("LUMIETL_AUTH_PASS", "")
 
-
-def ensure_directories():
-    """Ensure that runtime data directories exist."""
-    for directory in [APP_DATA_DIR, MODEL_DIR, OUTPUT_DIR]:
-        directory.mkdir(parents=True, exist_ok=True)
+# ---------------------------------------------------------------------------
+# Concurrent processing
+# ---------------------------------------------------------------------------
+MAX_CONCURRENT_TRANSLATIONS: int = 3

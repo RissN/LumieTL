@@ -1,197 +1,299 @@
-"""Batch translation processor with queue management, pause/resume, and auto-skip resilience."""
+"""Batch processing queue and task management.
+
+Each batch is a *task* identified by a UUID. Files are processed
+sequentially within a task (respecting the global semaphore), and
+processing continues even if individual files fail.
+"""
 
 import asyncio
+import io
 import time
+import uuid
+import zipfile
 from dataclasses import dataclass, field
+from datetime import datetime, timezone
+from enum import Enum
 from pathlib import Path
-from typing import Callable, Optional
-from core.config import ALLOWED_EXTENSIONS
+from typing import Any
+
+from core.config import OUTPUT_DIR, KEYS_FILE
 from core.history_manager import HistoryEntry, HistoryManager
 from core.translator import translate_image
+from security.keystore import Keystore
 from utils.file_utils import safe_output_path
-from utils.logger import get_logger
+from utils.logger import audit
 
-logger = get_logger()
+
+class FileStatus(str, Enum):
+    PENDING = "pending"
+    PROCESSING = "processing"
+    DONE = "done"
+    ERROR = "error"
+    CANCELLED = "cancelled"
 
 
 @dataclass
-class BatchItem:
-    input_path: Path
-    output_path: Path
-    status: str = "pending"  # pending, processing, success, error, skipped
+class BatchFile:
+    """Status tracker for a single file within a batch."""
+
+    filename: str
+    status: FileStatus = FileStatus.PENDING
     duration: float = 0.0
     error: str = ""
+    output_path: str | None = None
+
+
+@dataclass
+class BatchTask:
+    """A complete batch translation task."""
+
+    task_id: str
+    source_lang: str
+    target_lang: str
+    engine: str
+    files: list[BatchFile] = field(default_factory=list)
+    cancelled: bool = False
+    created_at: str = ""
+
+    @property
+    def total(self) -> int:
+        return len(self.files)
+
+    @property
+    def done_count(self) -> int:
+        return sum(
+            1 for f in self.files if f.status in (FileStatus.DONE, FileStatus.ERROR)
+        )
+
+    @property
+    def success_count(self) -> int:
+        return sum(1 for f in self.files if f.status == FileStatus.DONE)
+
+    @property
+    def error_count(self) -> int:
+        return sum(1 for f in self.files if f.status == FileStatus.ERROR)
+
+    @property
+    def is_complete(self) -> bool:
+        return all(
+            f.status in (FileStatus.DONE, FileStatus.ERROR, FileStatus.CANCELLED)
+            for f in self.files
+        )
+
+    def to_dict(self) -> dict[str, Any]:
+        return {
+            "task_id": self.task_id,
+            "source_lang": self.source_lang,
+            "target_lang": self.target_lang,
+            "engine": self.engine,
+            "cancelled": self.cancelled,
+            "created_at": self.created_at,
+            "total": self.total,
+            "done": self.done_count,
+            "success": self.success_count,
+            "errors": self.error_count,
+            "is_complete": self.is_complete,
+            "files": [
+                {
+                    "filename": f.filename,
+                    "status": f.status.value,
+                    "duration": f.duration,
+                    "error": f.error,
+                    "output_path": f.output_path,
+                }
+                for f in self.files
+            ],
+        }
 
 
 class BatchProcessor:
-    """Processes a batch queue of images with controls and progress reporting."""
+    """Manages batch translation tasks."""
 
     def __init__(
         self,
-        input_dir: Path,
-        output_dir: Optional[Path] = None,
-        source_lang: str = "auto",
-        target_lang: str = "ID",
-        engine: str = "google",
-        api_key: Optional[str] = None,
-        model_dir: Optional[Path] = None,
-        history_manager: Optional[HistoryManager] = None,
-        extension_filter: Optional[set[str]] = None,
-    ):
-        self.input_dir = input_dir
-        self.output_dir = output_dir or Path(f"{str(input_dir)}_translated")
-        self.source_lang = source_lang
-        self.target_lang = target_lang
-        self.engine = engine
-        self.api_key = api_key
-        self.model_dir = model_dir
-        self.history_manager = history_manager
-        self.extension_filter = extension_filter or ALLOWED_EXTENSIONS
+        semaphore: asyncio.Semaphore,
+        history: HistoryManager,
+        keystore: Keystore,
+    ) -> None:
+        self._semaphore = semaphore
+        self._history = history
+        self._keystore = keystore
+        self._tasks: dict[str, BatchTask] = {}
 
-        self.items: list[BatchItem] = []
-        self._is_paused = False
-        self._is_cancelled = False
-        self._scan_files()
+    def create_task(
+        self,
+        filenames: list[str],
+        source_lang: str,
+        target_lang: str,
+        engine: str,
+    ) -> str:
+        """Create a new batch task and return its ID."""
+        task_id = uuid.uuid4().hex[:12]
+        task = BatchTask(
+            task_id=task_id,
+            source_lang=source_lang,
+            target_lang=target_lang,
+            engine=engine,
+            files=[BatchFile(filename=fn) for fn in filenames],
+            created_at=datetime.now(timezone.utc).isoformat(),
+        )
+        self._tasks[task_id] = task
+        audit("batch_start", f"task={task_id} files={len(filenames)}")
+        return task_id
 
-    def _scan_files(self) -> None:
-        """Scan input directory for matching image files."""
-        if not self.input_dir.exists() or not self.input_dir.is_dir():
+    def get_task(self, task_id: str) -> BatchTask | None:
+        return self._tasks.get(task_id)
+
+    def cancel_task(self, task_id: str) -> bool:
+        task = self._tasks.get(task_id)
+        if not task:
+            return False
+        task.cancelled = True
+        for f in task.files:
+            if f.status == FileStatus.PENDING:
+                f.status = FileStatus.CANCELLED
+        audit("batch_cancel", f"task={task_id}")
+        return True
+
+    async def process_task(
+        self,
+        task_id: str,
+        file_contents: dict[str, bytes],
+    ) -> None:
+        """Process all files in a batch task sequentially."""
+        task = self._tasks.get(task_id)
+        if not task:
             return
 
-        for p in sorted(self.input_dir.iterdir()):
-            if p.is_file() and p.suffix.lower() in self.extension_filter:
-                safe_out = safe_output_path(self.output_dir, p.name)
-                self.items.append(BatchItem(input_path=p, output_path=safe_out))
+        task_output_dir = OUTPUT_DIR / f"batch_{task_id}"
+        task_output_dir.mkdir(parents=True, exist_ok=True)
 
-    def pause(self) -> None:
-        self._is_paused = True
+        api_key = self._keystore.get(task.engine)
 
-    def resume(self) -> None:
-        self._is_paused = False
-
-    def cancel(self) -> None:
-        self._is_cancelled = True
-
-    def is_paused(self) -> bool:
-        return self._is_paused
-
-    def is_cancelled(self) -> bool:
-        return self._is_cancelled
-
-    async def run(
-        self,
-        item_progress_callback: Optional[Callable[[int, int, BatchItem], None]] = None,
-    ) -> list[BatchItem]:
-        """
-        Execute the batch queue.
-        Guarantees that a failure in one file does not halt the entire queue.
-        """
-        total = len(self.items)
-        self.output_dir.mkdir(parents=True, exist_ok=True)
-
-        for idx, item in enumerate(self.items):
-            if self._is_cancelled:
-                item.status = "skipped"
-                item.error = "Cancelled by user"
-                if item_progress_callback:
-                    item_progress_callback(idx + 1, total, item)
+        for batch_file in task.files:
+            if task.cancelled:
+                if batch_file.status == FileStatus.PENDING:
+                    batch_file.status = FileStatus.CANCELLED
                 continue
 
-            # Handle pause state
-            while self._is_paused and not self._is_cancelled:
-                await asyncio.sleep(0.5)
+            batch_file.status = FileStatus.PROCESSING
+            start_time = time.time()
 
-            if self._is_cancelled:
-                item.status = "skipped"
-                item.error = "Cancelled by user"
-                if item_progress_callback:
-                    item_progress_callback(idx + 1, total, item)
-                continue
-
-            item.status = "processing"
-            if item_progress_callback:
-                item_progress_callback(idx + 1, total, item)
-
-            start_t = time.time()
             try:
-                _, duration = await translate_image(
-                    input_path=item.input_path,
-                    source_lang=self.source_lang,
-                    target_lang=self.target_lang,
-                    engine=self.engine,
-                    output_path=item.output_path,
-                    model_dir=self.model_dir,
-                    api_key=self.api_key,
-                    cancel_check=lambda: self._is_cancelled,
-                )
-                item.status = "success"
-                item.duration = duration
+                # Write input to temp file
+                input_path = task_output_dir / f"input_{batch_file.filename}"
+                input_path.write_bytes(file_contents[batch_file.filename])
 
-                if self.history_manager:
-                    self.history_manager.add(
-                        HistoryEntry(
-                            input_path=str(item.input_path),
-                            output_path=str(item.output_path),
-                            source_lang=self.source_lang,
-                            target_lang=self.target_lang,
-                            engine=self.engine,
-                            duration=duration,
-                            success=True,
-                        )
+                output_path = safe_output_path(
+                    task_output_dir, f"translated_{batch_file.filename}"
+                )
+
+                async with self._semaphore:
+                    await translate_image(
+                        input_path=input_path,
+                        source_lang=task.source_lang,
+                        target_lang=task.target_lang,
+                        engine=task.engine,
+                        output_path=output_path,
+                        api_key=api_key,
+                        cancel_check=lambda: task.cancelled,
                     )
+
+                elapsed = time.time() - start_time
+                batch_file.status = FileStatus.DONE
+                batch_file.duration = round(elapsed, 2)
+                batch_file.output_path = str(output_path)
+
+                # Record in history
+                self._history.add(
+                    HistoryEntry(
+                        id=0,
+                        timestamp=datetime.now(timezone.utc).isoformat(),
+                        input_filename=batch_file.filename,
+                        output_path=str(output_path),
+                        source_lang=task.source_lang,
+                        target_lang=task.target_lang,
+                        engine=task.engine,
+                        duration=batch_file.duration,
+                        success=True,
+                    )
+                )
+
+                # Clean up input file
+                input_path.unlink(missing_ok=True)
 
             except Exception as e:
-                duration = time.time() - start_t
-                item.status = "error"
-                item.duration = duration
-                item.error = str(e)
-                logger.warning("Batch item %s failed: %s", item.input_path.name, e)
+                elapsed = time.time() - start_time
+                batch_file.status = FileStatus.ERROR
+                batch_file.duration = round(elapsed, 2)
+                batch_file.error = str(e)
 
-                if self.history_manager:
-                    self.history_manager.add(
-                        HistoryEntry(
-                            input_path=str(item.input_path),
-                            output_path=None,
-                            source_lang=self.source_lang,
-                            target_lang=self.target_lang,
-                            engine=self.engine,
-                            duration=duration,
-                            success=False,
-                            error=str(e),
-                        )
+                self._history.add(
+                    HistoryEntry(
+                        id=0,
+                        timestamp=datetime.now(timezone.utc).isoformat(),
+                        input_filename=batch_file.filename,
+                        output_path=None,
+                        source_lang=task.source_lang,
+                        target_lang=task.target_lang,
+                        engine=task.engine,
+                        duration=batch_file.duration,
+                        success=False,
+                        error=str(e),
                     )
+                )
 
-            if item_progress_callback:
-                item_progress_callback(idx + 1, total, item)
+        audit(
+            "batch_done",
+            f"task={task_id} success={task.success_count} "
+            f"failed={task.error_count}",
+        )
 
-        return self.items
+    def build_zip(self, task_id: str) -> bytes | None:
+        """Create a ZIP archive of all successful outputs for a batch task."""
+        task = self._tasks.get(task_id)
+        if not task:
+            return None
 
-    def export_log(self, destination: Path) -> Path:
-        """Export batch processing summary and results to a text report."""
-        destination.parent.mkdir(parents=True, exist_ok=True)
+        buf = io.BytesIO()
+        with zipfile.ZipFile(buf, "w", zipfile.ZIP_DEFLATED) as zf:
+            for batch_file in task.files:
+                if batch_file.status == FileStatus.DONE and batch_file.output_path:
+                    out_path = Path(batch_file.output_path)
+                    if out_path.exists():
+                        zf.write(out_path, arcname=batch_file.filename)
+
+        return buf.getvalue()
+
+    def build_log(self, task_id: str) -> str:
+        """Generate a plain-text log for a batch task."""
+        task = self._tasks.get(task_id)
+        if not task:
+            return ""
+
         lines = [
-            f"=== LumieTL Batch Translation Report ===",
-            f"Input Directory:  {self.input_dir}",
-            f"Output Directory: {self.output_dir}",
-            f"Source Language:  {self.source_lang}",
-            f"Target Language:  {self.target_lang}",
-            f"Engine:           {self.engine}",
-            f"Total Files:      {len(self.items)}",
+            f"LumieTL Batch Log — {task.created_at}",
+            f"Task ID : {task.task_id}",
+            f"Source  : {task.source_lang}",
+            f"Target  : {task.target_lang}",
+            f"Engine  : {task.engine}",
+            f"Total   : {task.total}",
+            f"Success : {task.success_count}",
+            f"Errors  : {task.error_count}",
             "",
-            f"{'File Name':<35} | {'Status':<10} | {'Duration':<8} | {'Error'}",
-            "-" * 80,
+            "--- Files ---",
         ]
+        for f in task.files:
+            status_icon = {
+                FileStatus.DONE: "✅",
+                FileStatus.ERROR: "❌",
+                FileStatus.CANCELLED: "⏹",
+                FileStatus.PENDING: "⏸",
+                FileStatus.PROCESSING: "⏳",
+            }.get(f.status, "?")
+            line = f"{status_icon} {f.filename}  [{f.status.value}]  {f.duration}s"
+            if f.error:
+                line += f"  — {f.error}"
+            lines.append(line)
 
-        for item in self.items:
-            dur = f"{item.duration:.2f}s" if item.duration > 0 else "—"
-            err = item.error if item.error else ""
-            lines.append(f"{item.input_path.name:<35} | {item.status:<10} | {dur:<8} | {err}")
-
-        lines.append("-" * 80)
-        successful = sum(1 for i in self.items if i.status == "success")
-        failed = sum(1 for i in self.items if i.status == "error")
-        skipped = sum(1 for i in self.items if i.status == "skipped")
-        lines.append(f"Summary: {successful} succeeded, {failed} failed, {skipped} skipped.")
-
-        destination.write_text("\n".join(lines), encoding="utf-8")
-        return destination
+        return "\n".join(lines)

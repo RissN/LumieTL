@@ -1,136 +1,64 @@
-"""File security, path sanitation, and image format validation utilities."""
+"""File validation, sanitization, and path-traversal protection."""
 
 import re
 from pathlib import Path
-from PIL import Image
-from core.config import (
-    ALLOWED_EXTENSIONS,
-    MAX_FILE_SIZE_BYTES,
-    MAX_IMAGE_DIMENSION,
-    MAX_IMAGE_PIXELS,
-)
-from core.exceptions import FileValidationError, SecurityError
+
+from core.config import ALLOWED_EXTENSIONS, MAX_FILE_SIZE_BYTES, MAX_FILE_SIZE_MB
+
+# Magic byte signatures for supported image formats.
+# AVIF uses the ISO BMFF container — bytes 4..11 are "ftypavif" (or mif1).
+MAGIC_BYTES: dict[bytes, str] = {
+    b"\xff\xd8\xff": "jpeg",
+    b"\x89PNG\r\n\x1a\n": "png",
+    b"RIFF": "webp",  # WebP is RIFF container; further bytes identify VP8
+}
 
 
-def check_magic_bytes(path: Path) -> bool:
-    """
-    Validate actual file format using magic bytes signature.
-    Supports JPEG, PNG, WebP (RIFF....WEBP), and AVIF (ftypavif/avis).
-    """
-    try:
-        with open(path, "rb") as f:
-            header = f.read(32)
-    except Exception:
-        return False
+def _check_magic(data: bytes) -> bool:
+    """Return ``True`` if *data* starts with a recognised image signature."""
+    # Standard magic byte check
+    for magic in MAGIC_BYTES:
+        if data[: len(magic)] == magic:
+            return True
 
-    if len(header) < 12:
-        return False
-
-    # JPEG signature
-    if header.startswith(b"\xff\xd8\xff"):
-        return True
-
-    # PNG signature
-    if header.startswith(b"\x89PNG\r\n\x1a\n"):
-        return True
-
-    # WebP signature (RIFF + 4 bytes file length + WEBP)
-    if header.startswith(b"RIFF") and header[8:12] == b"WEBP":
-        return True
-
-    # AVIF signature (ISO Base Media File Format: [4:8] == 'ftyp', [8:12] in ('avif', 'avis'))
-    if header[4:8] == b"ftyp" and header[8:12] in (b"avif", b"avis", b"mif1"):
-        return True
+    # AVIF — ISO BMFF: bytes 4..8 == "ftyp" and brand contains "avif" or "mif1"
+    if len(data) >= 12 and data[4:8] == b"ftyp":
+        brand = data[8:12]
+        if brand in (b"avif", b"mif1", b"avis"):
+            return True
 
     return False
 
 
-def validate_image_dimensions(path: Path) -> tuple[bool, str]:
+def validate_image_bytes(data: bytes, filename: str) -> tuple[bool, str]:
+    """Validate uploaded image bytes (extension + size + magic bytes).
+
+    Returns ``(True, "")`` on success, or ``(False, reason)`` on failure.
     """
-    Inspect image header to detect decompression bombs (pixel flood attacks).
-    Does not decode the full raster bitmap into RAM.
-    """
-    try:
-        with Image.open(path) as img:
-            width, height = img.size
-            total_pixels = width * height
-
-            if width > MAX_IMAGE_DIMENSION or height > MAX_IMAGE_DIMENSION:
-                return (
-                    False,
-                    f"Image dimension ({width}x{height}) exceeds maximum allowed ({MAX_IMAGE_DIMENSION}px)",
-                )
-
-            if total_pixels > MAX_IMAGE_PIXELS:
-                return (
-                    False,
-                    f"Total image pixels ({total_pixels}) exceeds safety limit ({MAX_IMAGE_PIXELS} pixels)",
-                )
-
-        return True, ""
-    except Exception as e:
-        return False, f"Could not inspect image metadata: {e}"
-
-
-def validate_image_file(path: Path) -> tuple[bool, str]:
-    """
-    Comprehensive validation of an image file before processing.
-    Checks: existence, file type, allowed extension, file size, magic bytes, and dimensions.
-    """
-    if not path.exists():
-        return False, "File not found"
-
-    if not path.is_file():
-        return False, "Path is not a regular file"
-
-    ext = path.suffix.lower()
+    ext = Path(filename).suffix.lower()
     if ext not in ALLOWED_EXTENSIONS:
-        return False, f"Extension '{ext}' is not permitted"
-
-    try:
-        size = path.stat().st_size
-    except Exception as e:
-        return False, f"Cannot access file stat: {e}"
-
-    if size == 0:
-        return False, "File is empty (0 bytes)"
-
-    if size > MAX_FILE_SIZE_BYTES:
-        max_mb = MAX_FILE_SIZE_BYTES // (1024 * 1024)
-        return False, f"File size ({size} bytes) exceeds limit ({max_mb} MB)"
-
-    if not check_magic_bytes(path):
-        return False, "Invalid image file header (magic bytes signature mismatch)"
-
-    # Protect against decompression bombs
-    dim_ok, dim_err = validate_image_dimensions(path)
-    if not dim_ok:
-        return False, dim_err
-
+        return False, f"Extension not allowed: {ext}"
+    if len(data) > MAX_FILE_SIZE_BYTES:
+        return False, f"File too large (max {MAX_FILE_SIZE_MB}MB)"
+    if not _check_magic(data):
+        return False, "Invalid image file (magic bytes mismatch)"
     return True, ""
 
 
 def sanitize_filename(name: str) -> str:
-    """Strip dangerous characters and path separators from filenames."""
-    # Strip path separators and control characters
-    cleaned = re.sub(r'[<>:"/\\|?*\x00-\x1f]', "_", name)
-    # Prevent directory traversal dots
-    cleaned = re.sub(r"\.{2,}", "_", cleaned)
-    cleaned = cleaned.strip(". _")
-    # Ensure reasonable length
-    return cleaned[:200] if cleaned else "output"
+    """Remove dangerous characters from a filename."""
+    name = re.sub(r'[<>:"/\\|?*\x00-\x1f]', "_", name)
+    name = name.strip(". ")
+    return name[:200] if name else "output"
 
 
 def safe_output_path(base_dir: Path, filename: str) -> Path:
+    """Return a resolved path inside *base_dir*, preventing traversal.
+
+    Raises ``ValueError`` if the result escapes *base_dir*.
     """
-    Ensure the resolved destination stays strictly within base_dir.
-    Guards against path traversal and prefix collision vulnerabilities.
-    """
-    resolved_base = base_dir.resolve()
     safe_name = sanitize_filename(filename)
-    resolved_output = (resolved_base / safe_name).resolve()
-
-    if not resolved_output.is_relative_to(resolved_base):
-        raise SecurityError(f"Path traversal detected: {filename}")
-
-    return resolved_output
+    output = (base_dir / safe_name).resolve()
+    if not str(output).startswith(str(base_dir.resolve())):
+        raise ValueError(f"Path traversal detected: {filename}")
+    return output

@@ -1,50 +1,53 @@
-"""Image manipulation, resizing, and thumbnail generation helpers."""
+"""Image manipulation utilities (resize, convert, thumbnail)."""
 
-from pathlib import Path
-from PIL import Image
 import io
+from pathlib import Path
+
+from PIL import Image
 
 
-def create_thumbnail(
-    input_path: Path,
-    thumb_path: Path,
-    max_size: tuple[int, int] = (256, 256),
-    format: str = "WEBP",
-) -> Path:
-    """Create and save a high-quality thumbnail image."""
-    thumb_path.parent.mkdir(parents=True, exist_ok=True)
-    with Image.open(input_path) as img:
-        # Convert RGBA/LA or palette to RGB if saving as JPEG
-        if format.upper() in ("JPG", "JPEG") and img.mode in ("RGBA", "P"):
-            img = img.convert("RGB")
-        img.thumbnail(max_size, Image.Resampling.LANCZOS)
-        img.save(thumb_path, format=format, quality=80)
-    return thumb_path
+def resize_image(
+    image: Image.Image,
+    max_width: int = 2048,
+    max_height: int = 2048,
+) -> Image.Image:
+    """Resize *image* so it fits within the given bounds, preserving aspect ratio.
+
+    Returns the original image unchanged if it already fits.
+    """
+    w, h = image.size
+    if w <= max_width and h <= max_height:
+        return image
+    ratio = min(max_width / w, max_height / h)
+    new_size = (int(w * ratio), int(h * ratio))
+    return image.resize(new_size, Image.LANCZOS)
 
 
-def get_image_info(path: Path) -> dict:
-    """Return image dimensions, format, and mode without decoding full bitmap."""
-    with Image.open(path) as img:
-        return {
-            "width": img.width,
-            "height": img.height,
-            "format": img.format,
-            "mode": img.mode,
-            "file_size": path.stat().st_size,
-        }
+def convert_to_png(data: bytes) -> bytes:
+    """Convert any supported image bytes to PNG format."""
+    img = Image.open(io.BytesIO(data))
+    buf = io.BytesIO()
+    img.save(buf, format="PNG")
+    return buf.getvalue()
 
 
-def image_to_base64(path: Path, max_dimension: int | None = None) -> str:
-    """Convert an image to a base64-encoded string, optionally downscaling if too large."""
+def create_thumbnail(data: bytes, size: tuple[int, int] = (256, 256)) -> bytes:
+    """Create a JPEG thumbnail from image bytes."""
+    img = Image.open(io.BytesIO(data))
+    img.thumbnail(size, Image.LANCZOS)
+    buf = io.BytesIO()
+    # Convert RGBA → RGB for JPEG
+    if img.mode in ("RGBA", "LA", "P"):
+        img = img.convert("RGB")
+    img.save(buf, format="JPEG", quality=80)
+    return buf.getvalue()
+
+
+def image_to_base64_png(image_path: Path) -> str:
+    """Read an image file and return its base64-encoded PNG representation."""
     import base64
 
-    with Image.open(path) as img:
-        if max_dimension and (img.width > max_dimension or img.height > max_dimension):
-            img.thumbnail((max_dimension, max_dimension), Image.Resampling.LANCZOS)
-            buf = io.BytesIO()
-            img.save(buf, format="PNG")
-            raw_bytes = buf.getvalue()
-        else:
-            raw_bytes = path.read_bytes()
-
-    return base64.b64encode(raw_bytes).decode("ascii")
+    img = Image.open(image_path)
+    buf = io.BytesIO()
+    img.save(buf, format="PNG")
+    return base64.b64encode(buf.getvalue()).decode("ascii")

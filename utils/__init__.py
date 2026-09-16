@@ -1,1 +1,1 @@
-"""LumieTL Utils Package."""
+# Utils package

@@ -1,1 +1,1 @@
-"""LumieTL Core Package."""
+# Core package

@@ -1,154 +1,143 @@
-"""SQLite-based translation history manager."""
+"""SQLite-backed translation history manager."""
 
 import sqlite3
-from dataclasses import dataclass
-from datetime import datetime
+from dataclasses import dataclass, asdict
 from pathlib import Path
 from typing import Optional
 
 
 @dataclass
 class HistoryEntry:
-    id: Optional[int] = None
-    timestamp: str = ""
-    input_path: str = ""
-    output_path: Optional[str] = None
-    source_lang: str = "auto"
-    target_lang: str = "ID"
-    engine: str = "google"
-    duration: float = 0.0
-    success: bool = True
-    error: str = ""
+    """A single translation history record."""
 
-    def __post_init__(self):
-        if not self.timestamp:
-            self.timestamp = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
+    id: int
+    timestamp: str
+    input_filename: str
+    output_path: Optional[str]
+    source_lang: str
+    target_lang: str
+    engine: str
+    duration: float
+    success: bool
+    error: str = ""
 
 
 class HistoryManager:
-    """Manages translation history records using SQLite."""
+    """CRUD operations for translation history stored in SQLite."""
 
-    def __init__(self, db_path: Path):
+    def __init__(self, db_path: Path) -> None:
         self.db_path = db_path
-        self.db_path.parent.mkdir(parents=True, exist_ok=True)
         self._init_db()
 
-    def _get_connection(self) -> sqlite3.Connection:
-        conn = sqlite3.connect(str(self.db_path))
-        conn.row_factory = sqlite3.Row
-        return conn
+    def _conn(self) -> sqlite3.Connection:
+        return sqlite3.connect(self.db_path)
 
     def _init_db(self) -> None:
-        with self._get_connection() as conn:
+        self.db_path.parent.mkdir(parents=True, exist_ok=True)
+        with self._conn() as conn:
             conn.execute(
                 """
                 CREATE TABLE IF NOT EXISTS history (
-                    id           INTEGER PRIMARY KEY AUTOINCREMENT,
-                    timestamp    TEXT NOT NULL,
-                    input_path   TEXT NOT NULL,
-                    output_path  TEXT,
-                    source_lang  TEXT,
-                    target_lang  TEXT,
-                    engine       TEXT,
-                    duration     REAL,
-                    success      INTEGER NOT NULL DEFAULT 0,
-                    error        TEXT DEFAULT ''
+                    id             INTEGER PRIMARY KEY AUTOINCREMENT,
+                    timestamp      TEXT    NOT NULL,
+                    input_filename TEXT    NOT NULL,
+                    output_path    TEXT,
+                    source_lang    TEXT,
+                    target_lang    TEXT,
+                    engine         TEXT,
+                    duration       REAL,
+                    success        INTEGER NOT NULL DEFAULT 0,
+                    error          TEXT    DEFAULT ''
                 )
                 """
-            )
-            conn.execute(
-                "CREATE INDEX IF NOT EXISTS idx_history_timestamp ON history(timestamp DESC)"
             )
 
     def add(self, entry: HistoryEntry) -> int:
-        """Insert a new history entry and return its assigned ID."""
-        with self._get_connection() as conn:
+        """Insert a new history entry and return its row ID."""
+        with self._conn() as conn:
             cur = conn.execute(
                 """
-                INSERT INTO history (
-                    timestamp, input_path, output_path,
-                    source_lang, target_lang, engine, duration, success, error
-                )
+                INSERT INTO history
+                    (timestamp, input_filename, output_path,
+                     source_lang, target_lang, engine,
+                     duration, success, error)
                 VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)
                 """,
                 (
                     entry.timestamp,
-                    entry.input_path,
+                    entry.input_filename,
                     entry.output_path,
                     entry.source_lang,
                     entry.target_lang,
                     entry.engine,
                     entry.duration,
                     int(entry.success),
-                    entry.error or "",
+                    entry.error,
                 ),
             )
-            entry_id = cur.lastrowid
-            entry.id = entry_id
-            return entry_id
+            return cur.lastrowid  # type: ignore[return-value]
 
     def get_all(
         self,
-        limit: int = 100,
+        limit: int = 50,
         offset: int = 0,
         engine: str | None = None,
-        success: bool | None = None,
-    ) -> list[HistoryEntry]:
-        """Fetch historical records with pagination and optional filtering."""
-        query = "SELECT * FROM history WHERE 1=1"
+        status: str | None = None,
+        date_from: str | None = None,
+        date_to: str | None = None,
+    ) -> tuple[list[HistoryEntry], int]:
+        """Return a paginated, optionally filtered list of history entries.
+
+        Returns ``(entries, total_count)``.
+        """
+        where_clauses: list[str] = []
         params: list = []
 
         if engine:
-            query += " AND engine = ?"
+            where_clauses.append("engine = ?")
             params.append(engine)
+        if status == "success":
+            where_clauses.append("success = 1")
+        elif status == "error":
+            where_clauses.append("success = 0")
+        if date_from:
+            where_clauses.append("timestamp >= ?")
+            params.append(date_from)
+        if date_to:
+            where_clauses.append("timestamp <= ?")
+            params.append(date_to)
 
-        if success is not None:
-            query += " AND success = ?"
-            params.append(1 if success else 0)
+        where_sql = ""
+        if where_clauses:
+            where_sql = "WHERE " + " AND ".join(where_clauses)
 
-        query += " ORDER BY id DESC LIMIT ? OFFSET ?"
-        params.extend([limit, offset])
+        with self._conn() as conn:
+            # Total count (for pagination)
+            total = conn.execute(
+                f"SELECT COUNT(*) FROM history {where_sql}", params
+            ).fetchone()[0]
 
-        with self._get_connection() as conn:
-            rows = conn.execute(query, params).fetchall()
+            rows = conn.execute(
+                f"SELECT * FROM history {where_sql} ORDER BY id DESC LIMIT ? OFFSET ?",
+                [*params, limit, offset],
+            ).fetchall()
 
-        return [
-            HistoryEntry(
-                id=row["id"],
-                timestamp=row["timestamp"],
-                input_path=row["input_path"],
-                output_path=row["output_path"],
-                source_lang=row["source_lang"],
-                target_lang=row["target_lang"],
-                engine=row["engine"],
-                duration=float(row["duration"]),
-                success=bool(row["success"]),
-                error=row["error"] or "",
-            )
-            for row in rows
-        ]
+        entries = [HistoryEntry(*row) for row in rows]
+        return entries, total
 
-    def count(self, engine: str | None = None, success: bool | None = None) -> int:
-        """Count total records matching filters."""
-        query = "SELECT COUNT(*) as total FROM history WHERE 1=1"
-        params: list = []
-        if engine:
-            query += " AND engine = ?"
-            params.append(engine)
-        if success is not None:
-            query += " AND success = ?"
-            params.append(1 if success else 0)
+    def delete(self, entry_id: int) -> bool:
+        """Delete a single entry by ID. Returns ``True`` if a row was removed."""
+        with self._conn() as conn:
+            cur = conn.execute("DELETE FROM history WHERE id = ?", (entry_id,))
+            return cur.rowcount > 0
 
-        with self._get_connection() as conn:
-            row = conn.execute(query, params).fetchone()
-            return row["total"] if row else 0
+    def clear_all(self) -> int:
+        """Delete all history entries. Returns the number of rows removed."""
+        with self._conn() as conn:
+            cur = conn.execute("DELETE FROM history")
+            return cur.rowcount
 
-    def delete(self, entry_id: int) -> None:
-        """Delete an individual entry by ID."""
-        with self._get_connection() as conn:
-            conn.execute("DELETE FROM history WHERE id = ?", (entry_id,))
-
-    def clear_all(self) -> None:
-        """Clear all historical records."""
-        with self._get_connection() as conn:
-            conn.execute("DELETE FROM history")
+    def count(self) -> int:
+        """Return the total number of history entries."""
+        with self._conn() as conn:
+            return conn.execute("SELECT COUNT(*) FROM history").fetchone()[0]
